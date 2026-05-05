@@ -1,12 +1,18 @@
-import { Segmented } from 'antd';
+import { Button, Card, Col, Row, Space, Table, Tag } from 'antd';
 import { useMemo, useState } from 'react';
-import { DataTable, PageHeader } from '@/components';
+import { PageHeader } from '@/components';
+import { dictItems, dictTypes } from '@/mock/settings';
 
-const dictMap={
-  国家字典:[{key:'UK',value:'英国'},{key:'US',value:'美国'},{key:'CA',value:'加拿大'},{key:'AU',value:'澳大利亚'},{key:'SG',value:'新加坡'},{key:'HK',value:'中国香港'}],
-  渠道字典:[{key:'官网咨询',value:'官网咨询'},{key:'微信咨询',value:'微信咨询'},{key:'小红书',value:'小红书'},{key:'抖音',value:'抖音'},{key:'渠道合作',value:'渠道合作'}],
-  线索状态:[{key:'新线索',value:'新线索'},{key:'跟进中',value:'跟进中'},{key:'高意向',value:'高意向'},{key:'已签约',value:'已签约'}],
-  申请阶段:[{key:'选校规划',value:'选校规划'},{key:'文书准备',value:'文书准备'},{key:'网申提交',value:'网申提交'},{key:'Offer跟进',value:'Offer跟进'},{key:'签证办理',value:'签证办理'},{key:'行前准备',value:'行前准备'}]
-};
+export default function DictsPage(){
+  const [active, setActive] = useState('country');
+  const data = useMemo(()=>dictItems[active as keyof typeof dictItems] || [], [active]);
+  const columns=[{title:'名称',dataIndex:'name'},{title:'编码',dataIndex:'code'},{title:'状态',dataIndex:'status',render:(v:string)=><Tag color='green'>{v}</Tag>},{title:'排序',dataIndex:'sort'},{title:'备注',dataIndex:'remark'},{title:'操作',render:()=> <Space><Button type='link'>编辑</Button><Button type='link' danger>删除</Button></Space>}];
 
-export default function DictsPage(){const [tab,setTab]=useState<keyof typeof dictMap>('国家字典');const data=useMemo(()=>dictMap[tab],[tab]);return <><PageHeader title='字典配置'/><Segmented options={Object.keys(dictMap)} value={tab} onChange={(v)=>setTab(v as keyof typeof dictMap)} className='mb12'/><DataTable rowKey='key' columns={[{title:'编码',dataIndex:'key'},{title:'名称',dataIndex:'value'}]} dataSource={data} pagination={false}/></>}
+  return <>
+    <PageHeader title='字典配置中心'/>
+    <Row gutter={12}>
+      <Col span={6}><Card title='字典类型'>{dictTypes.map(t=><p key={t.code} className={`dict-type-item ${active===t.code?'active':''}`} onClick={()=>setActive(t.code)}>{t.name}</p>)}</Card></Col>
+      <Col span={18}><Card title='字典项' extra={<Space><Button type='primary'>新增字典项</Button><Button>批量编辑</Button></Space>}><Table rowKey='id' pagination={false} dataSource={data} columns={columns}/></Card></Col>
+    </Row>
+  </>
+}

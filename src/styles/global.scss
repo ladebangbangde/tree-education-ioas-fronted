@@ -1,7 +1,11 @@
 body{margin:0;background:#f3f6fb;font-family:PingFang SC,Segoe UI,sans-serif;color:#1f2d3d}
 .main-layout{min-height:100vh}.logo{height:56px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
-.top{background:#fff;padding:0 16px;display:flex;justify-content:flex-end;align-items:center;box-shadow:0 1px 6px #0000000f}.content{padding:12px}
-.page-header{margin-bottom:12px}.page-title-wrap{display:flex;justify-content:space-between;align-items:center}.filter-bar{margin-bottom:12px}.chart-card{margin-bottom:12px}
+.top{background:#fff;padding:0 16px;display:flex;justify-content:flex-end;align-items:center;box-shadow:0 1px 6px #0000000f}.content{padding:16px}
+.page-header{margin-bottom:12px;border-radius:10px}.page-title-wrap{display:flex;justify-content:space-between;align-items:center}.page-title-wrap h4{margin:8px 0}
+.filter-bar{margin-bottom:12px;border-radius:10px;background:#fff}.chart-card{margin-bottom:12px;border-radius:10px}
+.ant-card{border-radius:10px;box-shadow:0 2px 8px #0b2a5c0d}.ant-table-wrapper .ant-table{font-size:13px}
 .mb12{margin-bottom:12px}.mt12{margin-top:12px}.click{cursor:pointer}.icon-btn{font-size:18px}
 .login{min-height:100vh;display:grid;grid-template-columns:1.3fr 1fr}.login-left{background:#1f5cff;color:#fff;display:flex;align-items:center;justify-content:center;padding:48px}.login-right{display:flex;align-items:center;justify-content:center;background:#eef3ff}.login-card{width:420px;box-shadow:0 10px 28px #15417a26}
 .kanban-card{margin-bottom:8px}
+.advisor-item{padding:8px 6px;border:1px solid #e7edf8;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:.2s}.advisor-item.active,.advisor-item:hover{border-color:#1677ff;background:#f0f6ff}
+.dict-type-item{padding:10px 12px;border-radius:8px;cursor:pointer;margin:0 0 8px;background:#f7f9fd}.dict-type-item.active{background:#e8f2ff;color:#165dff;font-weight:600}
