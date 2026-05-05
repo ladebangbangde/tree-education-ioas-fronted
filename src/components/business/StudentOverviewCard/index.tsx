@@ -1,1 +1,2 @@
-import { Card, Progress } from 'antd';export default function StudentOverviewCard(){return <Card title='申请概览'><p>申请学校数：9</p><p>已完成材料：14</p><p>待补材料：3</p><p>Offer进度：56%</p><Progress percent={82} /></Card>}
+import { Card, Col, Progress, Row, Statistic, Tag } from 'antd';
+export default function StudentOverviewCard(){return <Card title='申请概览'><Row gutter={8}><Col span={12}><Statistic title='申请学校数' value={8}/></Col><Col span={12}><Statistic title='已完成材料' value={12}/></Col><Col span={12}><Statistic title='待补材料' value={3}/></Col><Col span={12}><Statistic title='Offer 数' value={2}/></Col></Row><p className='mt12'>当前风险等级：<Tag color='orange'>中风险</Tag></p><Progress percent={68} /></Card>}

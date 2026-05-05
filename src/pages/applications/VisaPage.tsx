@@ -1,2 +1,19 @@
-import { Card, Col, Progress, Row, Tag } from 'antd';import { PageHeader } from '@/components';
-export default function VisaPage(){return <><PageHeader title='签证管理'/><Row gutter={12}><Col span={12}><Card title='签证材料准备进度'><Progress percent={76}/><p>面签时间：2026-05-18 09:30</p><p>当前状态：<Tag color='processing'>资料审核中</Tag></p></Card></Col><Col span={12}><Card title='风险提示与行前关联'><p>风险：存款证明日期需更新</p><p>行前任务：住宿确认、接机安排、行李清单核对</p></Card></Col></Row></>}
+import { Card, Col, Progress, Row, Table, Tag } from 'antd';
+import { PageHeader } from '@/components';
+import { visaCases } from '@/mock/applications';
+
+export default function VisaPage(){
+  return <>
+    <PageHeader title='签证管理'/>
+    <Row gutter={12} className='mb12'>
+      <Col span={8}><Card title='签证总览'><p>待递签：6</p><p>面签待安排：4</p><p>已出签：12</p></Card></Col>
+      <Col span={8}><Card title='材料准备度'><Progress percent={74} /></Card></Col>
+      <Col span={8}><Card title='行前关联'><p>住宿确认：9/14</p><p>机票确认：7/14</p><p>接机登记：6/14</p></Card></Col>
+    </Row>
+    <Card>
+      <Table rowKey='id' pagination={false} dataSource={visaCases} columns={[
+        {title:'学生',dataIndex:'student'},{title:'签证状态',dataIndex:'status'},{title:'材料进度',dataIndex:'progress',render:(v:number)=><Progress percent={v} size='small'/>},{title:'面签时间',dataIndex:'interview'},{title:'风险标签',dataIndex:'risk',render:(v:string)=><Tag color={v==='高'?'red':v==='中'?'orange':'green'}>{v}风险</Tag>},{title:'行前关联',dataIndex:'preDeparture'}
+      ]} />
+    </Card>
+  </>
+}
