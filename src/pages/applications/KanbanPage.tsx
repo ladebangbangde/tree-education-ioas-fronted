@@ -1,3 +1,3 @@
-import { Card, Col, List, Row } from 'antd';import { PageHeader } from '@/components/common';
-const cols=['选校规划','文书准备','网申提交','Offer跟进','签证办理','行前准备'];
-export default function(){return <><PageHeader title='申请交付看板'/><Row gutter={12}>{cols.map(c=><Col span={4} key={c}><Card title={c}><List size='small' dataSource={['张同学 英国 2026F Amy 60%','李同学 美国 2026F Tom 40%']} renderItem={i=><List.Item>{i}</List.Item>} /></Card></Col>)}<Col span={24} className='mt12'><Card title='今日待办与超期任务'>待办3条，超期1条</Card></Col></Row></>}
+import { Card, Col, Row } from 'antd';import { ApplicationStageCard, PageHeader, TaskListCard } from '@/components';import { kanbanColumns, kanbanData } from '@/mock/applications';
+import { tasks } from '@/mock/tasks';
+export default function ApplicationsKanbanPage(){return <><PageHeader title='申请交付看板'/><Row gutter={12}>{kanbanColumns.map(c=><Col span={4} key={c}><Card title={c} bodyStyle={{padding:8}}>{kanbanData[c as keyof typeof kanbanData].map(s=><ApplicationStageCard key={s.name} {...s} />)}</Card></Col>)}<Col span={24} className='mt12'><Row gutter={12}><Col span={12}><TaskListCard title='今日待办' data={tasks.todo}/></Col><Col span={12}><TaskListCard title='超期任务' data={tasks.timeout}/></Col></Row></Col></Row></>}

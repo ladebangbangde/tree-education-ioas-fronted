@@ -1,0 +1,1 @@
+import ReactECharts from 'echarts-for-react';export default function TrendLineChart({x,data}:{x:string[];data:number[]}){return <ReactECharts option={{grid:{left:24,right:16,top:24,bottom:24},xAxis:{type:'category',data:x},yAxis:{type:'value'},series:[{type:'line',smooth:true,data,areaStyle:{opacity:.08}}]}}/>}

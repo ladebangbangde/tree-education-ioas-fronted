@@ -1,0 +1,3 @@
+import { Breadcrumb, Card, Typography } from 'antd';import { useLocation } from 'react-router-dom';import { menuConfig } from '@/constants/menu';import { flatMenuPathMap } from '@/utils/menu';
+import { useMemo } from 'react';
+export default function PageHeader({title,extra}:{title:string;extra?:React.ReactNode}){const {pathname}=useLocation();const map=useMemo(()=>flatMenuPathMap(menuConfig),[]);const crumbs=map.get(pathname)||pathname.split('/').filter(Boolean);return <Card className='page-header'><Breadcrumb items={crumbs.map(c=>({title:c}))}/><div className='page-title-wrap'><Typography.Title level={4}>{title}</Typography.Title>{extra}</div></Card>}

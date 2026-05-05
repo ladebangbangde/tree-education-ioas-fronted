@@ -1,2 +1,2 @@
-import { Card, Progress } from 'antd';import { PageHeader, StatusTag } from '@/components/common';
-export default function(){return <><PageHeader title='签证管理'/><Card><p>材料准备进度</p><Progress percent={68}/><p>面签时间：2026-06-08</p><p>当前状态：<StatusTag status='准备中'/></p><p>风险提醒：资金证明需补充</p></Card></>}
+import { Card, Col, Progress, Row, Tag } from 'antd';import { PageHeader } from '@/components';
+export default function VisaPage(){return <><PageHeader title='签证管理'/><Row gutter={12}><Col span={12}><Card title='签证材料准备进度'><Progress percent={76}/><p>面签时间：2026-05-18 09:30</p><p>当前状态：<Tag color='processing'>资料审核中</Tag></p></Card></Col><Col span={12}><Card title='风险提示与行前关联'><p>风险：存款证明日期需更新</p><p>行前任务：住宿确认、接机安排、行李清单核对</p></Card></Col></Row></>}

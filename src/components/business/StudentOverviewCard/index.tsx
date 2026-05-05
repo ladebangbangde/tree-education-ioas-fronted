@@ -1,0 +1,1 @@
+import { Card, Progress } from 'antd';export default function StudentOverviewCard(){return <Card title='申请概览'><p>申请学校数：9</p><p>已完成材料：14</p><p>待补材料：3</p><p>Offer进度：56%</p><Progress percent={82} /></Card>}

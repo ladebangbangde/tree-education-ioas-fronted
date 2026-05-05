@@ -1,3 +1,3 @@
-import { Tabs } from 'antd';import { DataTable, PageHeader } from '@/components/common';
-const table=<DataTable rowKey='k' columns={[{title:'编码',dataIndex:'k'},{title:'名称',dataIndex:'v'}]} dataSource={[{k:'UK',v:'英国'}]} />;
-export default function(){return <><PageHeader title='字典配置'/><Tabs items={[{key:'1',label:'国家字典',children:table},{key:'2',label:'线索状态字典',children:table},{key:'3',label:'渠道字典',children:table},{key:'4',label:'申请阶段字典',children:table}]}/></>}
+import { Segmented } from 'antd';import { useState } from 'react';import { DataTable, PageHeader } from '@/components';
+const map={国家字典:[{key:'UK',value:'英国'},{key:'US',value:'美国'}],渠道字典:[{key:'官网咨询',value:'官网咨询'},{key:'小红书',value:'小红书'}],线索状态:[{key:'新线索',value:'新线索'},{key:'高意向',value:'高意向'}],申请阶段:[{key:'文书准备',value:'文书准备'},{key:'签证办理',value:'签证办理'}]};
+export default function DictsPage(){const [tab,setTab]=useState<keyof typeof map>('国家字典');return <><PageHeader title='字典配置'/><Segmented options={Object.keys(map)} value={tab} onChange={(v)=>setTab(v as keyof typeof map)} className='mb12'/><DataTable rowKey='key' columns={[{title:'编码',dataIndex:'key'},{title:'名称',dataIndex:'value'}]} dataSource={map[tab]} pagination={false}/></>}

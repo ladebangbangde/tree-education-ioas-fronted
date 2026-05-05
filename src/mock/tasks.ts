@@ -1,0 +1,1 @@
+export const tasks={todo:[{task:'完成张雨菲选校方案评审',deadline:'2026-05-05 18:00',priority:'高',status:'进行中'}],done:[{task:'提交陈昊然文书终稿',deadline:'2026-05-04 16:00',priority:'中',status:'已完成'}],timeout:[{task:'补齐王佳宁签证流水',deadline:'2026-05-02 12:00',priority:'高',status:'超时'}]};

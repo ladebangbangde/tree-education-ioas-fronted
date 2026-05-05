@@ -1,0 +1,1 @@
+import ReactECharts from 'echarts-for-react';export default function PieChart({data}:{data:{name:string;value:number}[]}){return <ReactECharts option={{tooltip:{trigger:'item'},series:[{type:'pie',radius:['35%','65%'],data}]}}/>}

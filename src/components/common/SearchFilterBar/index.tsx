@@ -1,0 +1,1 @@
+import { Card, Space } from 'antd';export default function SearchFilterBar({children,extra}:{children:React.ReactNode;extra?:React.ReactNode}){return <Card className='filter-bar'><Space wrap>{children}</Space><div>{extra}</div></Card>}

@@ -1,7 +1,3 @@
-import { Button, Card, Col, Form, Input, Row, Select } from 'antd';
-import { DataTable, PageHeader, SearchFilterBar, StatusTag } from '@/components/common';
-const data=[{key:'1',name:'张同学',country:'英国',status:'跟进中',owner:'Amy顾问',time:'2026-05-05'}];
-export default function Page(){
-const cols=[{title:'姓名',dataIndex:'name'},{title:'国家',dataIndex:'country'},{title:'状态',dataIndex:'status',render:(v:string)=><StatusTag status={v}/>},{title:'负责人',dataIndex:'owner'},{title:'更新时间',dataIndex:'time'},{title:'操作',render:()=> <Button size='small'>查看</Button>}];
-return <><PageHeader title='文章管理'/><SearchFilterBar><Form layout='inline'><Form.Item label='关键词'><Input/></Form.Item><Form.Item label='状态'><Select style={{width:140}} options={[{{value:'跟进中'}}]}/></Form.Item><Button type='primary'>查询</Button><Button>重置</Button></Form></SearchFilterBar><DataTable rowKey='key' columns={cols} dataSource={data} pagination={{total:1}}/></>;
-}}
+import { Button, Form, Select, Space } from 'antd';import { DataTable, PageHeader, SearchFilterBar, StatusTag } from '@/components';import { articleCategories, articles } from '@/mock/cms';
+export default function ArticlesPage(){const columns=[{title:'标题',dataIndex:'title'},{title:'分类',dataIndex:'category'},{title:'作者',dataIndex:'author'},{title:'状态',dataIndex:'status',render:(v:string)=><StatusTag status={v==='已发布'?'已完成':'跟进中'}/>},{title:'发布时间',dataIndex:'publishAt'},{title:'SEO',dataIndex:'seo'},{title:'操作',render:()=> <Space><Button type='link'>编辑</Button><Button type='link'>预览</Button><Button type='link'>发布</Button></Space>}];
+return <><PageHeader title='CMS / 文章管理' extra={<Space><Button>下线</Button><Button type='primary'>新建文章</Button></Space>}/><SearchFilterBar><Form layout='inline'><Form.Item label='分类'><Select style={{width:160}} options={articleCategories.map(i=>({value:i}))}/></Form.Item><Button type='primary'>筛选</Button></Form></SearchFilterBar><DataTable rowKey='id' columns={columns} dataSource={articles}/></>}

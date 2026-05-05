@@ -1,0 +1,1 @@
+import ReactECharts from 'echarts-for-react';export default function FunnelChart({data}:{data:{name:string;value:number}[]}){return <ReactECharts option={{series:[{type:'funnel',left:'5%',width:'90%',data}]}}/>}

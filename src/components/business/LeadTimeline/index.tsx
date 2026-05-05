@@ -1,0 +1,1 @@
+import { Card, Timeline } from 'antd';export default function LeadTimeline({items}:{items:{time:string;content:string;owner:string}[]}){return <Card><Timeline items={items.map(i=>({children:`${i.time} ${i.content}（${i.owner}）`}))}/></Card>}
