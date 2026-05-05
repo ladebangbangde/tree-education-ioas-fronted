@@ -1,0 +1,2 @@
+import { Card, Col, Input, List, Row, Tree } from 'antd';import { PageHeader } from '@/components/common';
+export default function(){return <><PageHeader title='知识库'/><Row gutter={12}><Col span={6}><Card><Tree treeData={[{title:'FAQ',key:'1'},{title:'国家政策',key:'2'},{title:'院校资料',key:'3'}]}/></Card></Col><Col span={18}><Card><Input.Search placeholder='搜索知识'/><List className='mt12' dataSource={['英国签证最新政策说明','UCL申请材料模板','美国CS专业选校建议']} renderItem={i=><List.Item>{i}</List.Item>} /></Card></Col></Row></>}

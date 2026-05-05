@@ -1,0 +1,2 @@
+import { Card, Col, Row, Tree } from 'antd';import { PageHeader } from '@/components/common';
+export default function(){return <><PageHeader title='角色权限'/><Row gutter={12}><Col span={6}><Card title='角色列表'>SUPER_ADMIN<br/>OPERATOR</Card></Col><Col span={18}><Card title='菜单权限'><Tree checkable treeData={[{title:'工作台',key:'1'},{title:'线索中心',key:'2',children:[{title:'线索列表',key:'2-1'}]}]}/><p>按钮权限配置：占位</p><p>数据权限：占位</p></Card></Col></Row></>}

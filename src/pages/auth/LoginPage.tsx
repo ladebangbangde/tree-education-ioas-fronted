@@ -1,0 +1,4 @@
+import { Button, Card, Checkbox, Form, Input } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/store/auth';
+export default function LoginPage(){const nav=useNavigate();const login=useAuthStore(s=>s.login);return <div className='login'><div className='login-left'><h1>留学中介运营中台</h1></div><Card className='login-card'><h2>欢迎登录</h2><Form onFinish={(v)=>{login(v.username,v.password);nav('/dashboard');}} layout='vertical'><Form.Item name='username' label='账号' rules={[{required:true}]}><Input/></Form.Item><Form.Item name='password' label='密码' rules={[{required:true}]}><Input.Password/></Form.Item><Form.Item name='remember' valuePropName='checked'><Checkbox>记住我</Checkbox></Form.Item><Button htmlType='submit' type='primary' block>登录</Button></Form></Card></div>}

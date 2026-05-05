@@ -1,0 +1,2 @@
+import { Card, Col, Progress, Row, Tabs } from 'antd';import { PageHeader } from '@/components/common';
+export default function(){return <><PageHeader title='学生档案详情'/><Row gutter={12}><Col span={18}><Card><Tabs items={['基本信息','背景资料','申请方案','合同信息','材料清单','跟进记录'].map((x,i)=>({key:String(i),label:x,children:x+'内容'}))}/><Progress percent={72} /></Card></Col><Col span={6}><Card title='申请概览'><p>申请学校: 8</p><p>已完成材料: 12</p><p>待补材料: 4</p><p>Offer进度: 50%</p></Card></Col></Row></>}
