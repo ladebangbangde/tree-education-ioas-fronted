@@ -1,0 +1,7 @@
+services:
+  tree-education-ioas-fronted:
+    build: .
+    container_name: tree-education-ioas-fronted
+    ports:
+      - "8080:80"
+    restart: always
