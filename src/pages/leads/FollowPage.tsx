@@ -15,7 +15,7 @@ export default function LeadsFollowPage(){
       <div className='mt12'><Space wrap>{followTags.map(t=><Tag key={t}>{t}</Tag>)}</Space></div>
     </Card>
 
-    <Row gutter={12}>
+    <Row gutter={[16,16]}>
       <Col span={12}><Card title='跟进时间线'><LeadTimeline items={followLogs.map(({time,content,owner})=>({time,content,owner}))} /></Card></Col>
       <Col span={12}><Card title='新增跟进记录'>
         <Form layout='vertical'>

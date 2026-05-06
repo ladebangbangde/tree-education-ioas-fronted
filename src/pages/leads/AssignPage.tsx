@@ -10,7 +10,7 @@ export default function LeadsAssignPage(){
 
   return <>
     <PageHeader title='线索分配中心' />
-    <Row gutter={12} className='mb12'>
+    <Row gutter={[16,16]} className='mb12'>
       <Col span={8}><Card><Statistic title='当前待分配线索' value={assignStats.pending} /></Card></Col>
       <Col span={8}><Card><Statistic title='高意向线索' value={assignStats.highIntent} /></Card></Col>
       <Col span={8}><Card><Statistic title='今日新分配' value={assignStats.todayAssigned} /></Card></Col>
@@ -25,7 +25,7 @@ export default function LeadsAssignPage(){
       ]} />
     </Card>
 
-    <Row gutter={12}>
+    <Row gutter={[16,16]}>
       <Col span={9}>
         <Card title='顾问池（可选）'>
           <List dataSource={advisors} renderItem={(a)=><List.Item className={`advisor-item ${selectedAdvisor===a.name?'active':''}`} onClick={()=>setSelectedAdvisor(a.name)}>
