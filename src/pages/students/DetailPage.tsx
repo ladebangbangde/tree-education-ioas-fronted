@@ -9,7 +9,7 @@ export default function StudentsDetailPage(){
 
   return <>
     <PageHeader title='学生档案详情' />
-    <Row gutter={12}>
+    <Row gutter={[16,16]}>
       <Col span={18}>
         <Card className='mb12'>
           <Space align='start' size={16}>
@@ -53,7 +53,7 @@ export default function StudentsDetailPage(){
         </Card>
 
         <Card className='mt12' title='进度与近期安排'>
-          <Row gutter={12}>
+          <Row gutter={[16,16]}>
             <Col span={8}><p>材料完成率</p><Progress percent={75} /></Col>
             <Col span={8}><p>申请整体进度</p><Progress percent={62} status='active' /></Col>
             <Col span={8}><p>近期待办</p><List size='small' dataSource={studentTodos} renderItem={i=><List.Item>{i}</List.Item>} /></Col>

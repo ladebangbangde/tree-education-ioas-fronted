@@ -5,7 +5,7 @@ import { visaCases } from '@/mock/applications';
 export default function VisaPage(){
   return <>
     <PageHeader title='签证管理'/>
-    <Row gutter={12} className='mb12'>
+    <Row gutter={[16,16]} className='mb12'>
       <Col span={8}><Card title='签证总览'><p>待递签：6</p><p>面签待安排：4</p><p>已出签：12</p></Card></Col>
       <Col span={8}><Card title='材料准备度'><Progress percent={74} /></Card></Col>
       <Col span={8}><Card title='行前关联'><p>住宿确认：9/14</p><p>机票确认：7/14</p><p>接机登记：6/14</p></Card></Col>

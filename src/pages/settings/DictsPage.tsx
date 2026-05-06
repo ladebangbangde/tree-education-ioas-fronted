@@ -10,7 +10,7 @@ export default function DictsPage(){
 
   return <>
     <PageHeader title='字典配置中心'/>
-    <Row gutter={12}>
+    <Row gutter={[16,16]}>
       <Col span={6}><Card title='字典类型'>{dictTypes.map(t=><p key={t.code} className={`dict-type-item ${active===t.code?'active':''}`} onClick={()=>setActive(t.code)}>{t.name}</p>)}</Card></Col>
       <Col span={18}><Card title='字典项' extra={<Space><Button type='primary'>新增字典项</Button><Button>批量编辑</Button></Space>}><Table rowKey='id' pagination={false} dataSource={data} columns={columns}/></Card></Col>
     </Row>

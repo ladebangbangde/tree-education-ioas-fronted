@@ -15,7 +15,7 @@ export default function ApplicationsDetailPage(){
         {key:'essay',label:'文书清单',children:<Table rowKey='id' pagination={false} dataSource={essayRows} columns={[{title:'文书名称',dataIndex:'name'},{title:'负责人',dataIndex:'owner'},{title:'状态',dataIndex:'status'},{title:'更新时间',dataIndex:'updated'}]} />},
         {key:'material',label:'材料清单',children:<Table rowKey='id' pagination={false} dataSource={materialRows} columns={[{title:'材料',dataIndex:'name'},{title:'状态',dataIndex:'status'},{title:'截止时间',dataIndex:'deadline'},{title:'负责人',dataIndex:'owner'}]} />},
         {key:'nodes',label:'节点记录',children:<LeadTimeline items={nodeLogs} />},
-        {key:'risk',label:'风险提醒',children:<Row gutter={12}>{riskCards.map(r=><Col span={12} key={r.title}><Card type='inner' title={r.title} extra={<Tag color={r.level==='高'?'red':r.level==='中'?'orange':'green'}>{r.level}风险</Tag>}>{r.desc}</Card></Col>)}</Row>}
+        {key:'risk',label:'风险提醒',children:<Row gutter={[16,16]}>{riskCards.map(r=><Col span={12} key={r.title}><Card type='inner' title={r.title} extra={<Tag color={r.level==='高'?'red':r.level==='中'?'orange':'green'}>{r.level}风险</Tag>}>{r.desc}</Card></Col>)}</Row>}
       ]} />
     </Card>
   </>
