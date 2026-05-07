@@ -1,25 +1,38 @@
 import { matchPath } from 'react-router-dom';
-import type { Role } from '@/types';
+import type { Department, Position, Role } from '@/types';
 
-export const roles: Role[] = ['SUPER_ADMIN','OPERATOR','CONSULTANT','APPLICANT_TEACHER','COPYWRITER','AFTER_SERVICE'];
+export const roles: Role[] = ['SUPER_ADMIN','STAFF','OPERATOR'];
+export const staffPositions: Position[] = ['留学顾问','申请老师','文案老师','签证服务'];
 
 export const roleLabels: Record<Role, string> = {
   SUPER_ADMIN: '超级管理员',
-  OPERATOR: '运营管理员',
-  CONSULTANT: '留学顾问',
-  APPLICANT_TEACHER: '申请老师',
-  COPYWRITER: '文案/内容',
-  AFTER_SERVICE: '签证后服务'
+  STAFF: '老师',
+  OPERATOR: '运营人员'
+};
+
+export const departmentByPosition: Record<Position, Department> = {
+  超级管理员: '系统管理部',
+  运营人员: '运营部',
+  留学顾问: '咨询中心',
+  申请老师: '申请交付中心',
+  文案老师: '文案部',
+  签证服务: '签证部'
 };
 
 export const defaultRouteByRole: Record<Role, string> = {
   SUPER_ADMIN: '/dashboard',
-  OPERATOR: '/dashboard',
-  CONSULTANT: '/leads/list',
-  APPLICANT_TEACHER: '/applications/kanban',
-  COPYWRITER: '/cms/articles',
-  AFTER_SERVICE: '/applications/visa'
+  STAFF: '/leads/list',
+  OPERATOR: '/dashboard'
 };
+
+export const defaultRouteByStaffPosition: Partial<Record<Position, string>> = {
+  留学顾问: '/leads/list',
+  申请老师: '/applications/kanban',
+  文案老师: '/applications/materials',
+  签证服务: '/applications/visa'
+};
+
+export const getDefaultRoute = (role: Role, position?: Position) => role === 'STAFF' && position ? (defaultRouteByStaffPosition[position] || defaultRouteByRole.STAFF) : defaultRouteByRole[role];
 
 export type ButtonAction = 'view'|'edit'|'export'|'assign'|'batch'|'publish'|'preview'|'permission'|'delete'|'resetPassword'|'follow'|'convert'|'highIntent'|'new'|'file'|'log'|'config'|'stage'|'advisor'|'offline'|'more';
 
@@ -36,19 +49,8 @@ const allRoutes = [
 
 export const rolePageMatrix: Record<Role, string[]> = {
   SUPER_ADMIN: [...allRoutes],
-  OPERATOR: [
-    '/dashboard',
-    '/leads/list','/leads/detail/:id','/leads/assign','/leads/follow',
-    '/students/list','/students/detail/:id',
-    '/cms/articles','/cms/cases','/cms/case/detail/:id','/cms/case/preview/:id','/cms/case/edit/:id','/cms/config/country','/cms/config/school','/cms/media','/cms/site-config','/cms/:type/:mode/:id','/cms/config/:mode',
-    '/knowledge/library','/messages/tasks',
-    '/reports/overview','/reports/leads',
-    '/settings/users','/settings/advisors','/settings/departments','/settings/positions','/settings/dict/detail/:id','/settings/dict/edit/:id','/settings/opLog/detail/:id','/settings/loginLog/detail/:id','/settings/:type/:mode/:id','/settings/dicts','/settings/logs'
-  ],
-  CONSULTANT: ['/dashboard','/leads/list','/leads/detail/:id','/leads/follow','/students/list','/students/detail/:id','/messages/tasks','/knowledge/library'],
-  APPLICANT_TEACHER: ['/dashboard','/students/list','/students/detail/:id','/applications/kanban','/applications/detail/:id','/applications/stage/:stage','/applications/materials','/applications/offers','/applications/visa','/messages/tasks','/knowledge/library'],
-  COPYWRITER: ['/dashboard','/cms/articles','/cms/cases','/cms/case/detail/:id','/cms/case/preview/:id','/cms/case/edit/:id','/cms/config/country','/cms/config/school','/cms/media','/cms/site-config','/cms/:type/:mode/:id','/cms/config/:mode','/knowledge/library','/messages/tasks'],
-  AFTER_SERVICE: ['/dashboard','/students/list','/students/detail/:id','/applications/visa','/applications/detail/:id','/messages/tasks','/knowledge/library']
+  STAFF: ['/dashboard','/leads/list','/leads/detail/:id','/leads/follow','/students/list','/students/detail/:id','/applications/kanban','/applications/detail/:id','/applications/stage/:stage','/applications/materials','/applications/offers','/applications/visa','/knowledge/library','/messages/tasks'],
+  OPERATOR: ['/dashboard','/leads/list','/leads/detail/:id','/leads/assign','/leads/follow','/cms/articles','/cms/cases','/cms/case/detail/:id','/cms/case/preview/:id','/cms/case/edit/:id','/cms/config/country','/cms/config/school','/cms/media','/cms/site-config','/cms/:type/:mode/:id','/cms/config/:mode','/knowledge/library','/messages/tasks','/reports/overview','/reports/leads']
 };
 
 export const routePermissionMap = allRoutes.reduce((acc, route) => {
@@ -59,22 +61,20 @@ export const routePermissionMap = allRoutes.reduce((acc, route) => {
 const allActions: ButtonAction[] = ['view','edit','export','assign','batch','publish','preview','permission','delete','resetPassword','follow','convert','highIntent','new','file','log','config','stage','advisor','offline','more'];
 export const roleButtonMatrix: Record<Role, ButtonAction[]> = {
   SUPER_ADMIN: allActions,
-  OPERATOR: ['view','edit','export','assign','batch','publish','preview','follow','convert','highIntent','new','file','log','config','stage','advisor','offline','more'],
-  CONSULTANT: ['view','edit','follow','convert','highIntent','new','file','log','more'],
-  APPLICANT_TEACHER: ['view','edit','preview','file','log','stage','new','more'],
-  COPYWRITER: ['view','edit','preview','publish','new','file','log','config','offline','more'],
-  AFTER_SERVICE: ['view','edit','file','log','stage','more']
+  STAFF: ['view','edit','follow','file','log','stage','more'],
+  OPERATOR: ['view','edit','export','assign','batch','publish','preview','new','file','log','config','offline','more']
 };
 
-const deniedRouteMatrix: Partial<Record<Role, string[]>> = {
-  OPERATOR: ['/settings/roles','/settings/role/detail/:id','/settings/role/permission/:id','/settings/data-permission','/settings/data-permission/config','/settings/menu-permission'],
-  CONSULTANT: ['/leads/assign'],
-  COPYWRITER: ['/students/list','/students/detail/:id'],
-  AFTER_SERVICE: ['/applications/kanban','/applications/materials','/applications/offers']
-};
+export const oldRoleMigrationMap = {
+  CONSULTANT: { role: 'STAFF', position: '留学顾问', department: '咨询中心' },
+  APPLICANT_TEACHER: { role: 'STAFF', position: '申请老师', department: '申请交付中心' },
+  COPYWRITER: { role: 'STAFF', position: '文案老师', department: '文案部' },
+  AFTER_SERVICE: { role: 'STAFF', position: '签证服务', department: '签证部' },
+  OPERATOR: { role: 'OPERATOR', position: '运营人员', department: '运营部' },
+  SUPER_ADMIN: { role: 'SUPER_ADMIN', position: '超级管理员', department: '系统管理部' }
+} as const;
 
 export const canAccessRoute = (role: Role, pathname: string) => {
-  if (role !== 'SUPER_ADMIN' && deniedRouteMatrix[role]?.some(pattern => Boolean(matchPath({ path: pattern, end: true }, pathname)))) return false;
   if (role === 'SUPER_ADMIN') return true;
   return rolePageMatrix[role].some(pattern => Boolean(matchPath({ path: pattern, end: true }, pathname)));
 };
