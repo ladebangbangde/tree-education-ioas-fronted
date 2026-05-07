@@ -2,9 +2,10 @@ import { Button, Card, Col, Progress, Row, Table, Tag } from 'antd';
 import { PageHeader } from '@/components';
 import { visaCases } from '@/mock/applications';
 import { useEnterpriseActions } from '@/hooks/useEnterpriseActions';
+import { scopeApplications } from '@/utils/mockScope';
 
 export default function VisaPage(){
-  const {openAction, contextHolder}=useEnterpriseActions('签证办理');
+  const {openAction, canAction, contextHolder}=useEnterpriseActions('签证办理');
   return <>{contextHolder}
     <PageHeader title='签证管理'/>
     <Row gutter={[16,16]} className='mb12'>
@@ -13,8 +14,8 @@ export default function VisaPage(){
       <Col span={8}><Card title='行前关联'><p>住宿确认：9/14</p><p>机票确认：7/14</p><p>接机登记：6/14</p></Card></Col>
     </Row>
     <Card>
-      <Table rowKey='id' pagination={false} dataSource={visaCases} columns={[
-        {title:'学生',dataIndex:'student'},{title:'签证状态',dataIndex:'status'},{title:'材料进度',dataIndex:'progress',render:(v:number)=><Progress percent={v} size='small'/>},{title:'面签时间',dataIndex:'interview'},{title:'风险标签',dataIndex:'risk',render:(v:string)=><Tag color={v==='高'?'red':v==='中'?'orange':'green'}>{v}风险</Tag>},{title:'行前关联',dataIndex:'preDeparture'},{title:'操作',render:(_:unknown,r:any)=><Button type='link' onClick={()=>openAction('view',r)}>签证详情</Button>}
+      <Table rowKey='id' pagination={false} dataSource={scopeApplications(visaCases)} columns={[
+        {title:'学生',dataIndex:'student'},{title:'签证状态',dataIndex:'status'},{title:'材料进度',dataIndex:'progress',render:(v:number)=><Progress percent={v} size='small'/>},{title:'面签时间',dataIndex:'interview'},{title:'风险标签',dataIndex:'risk',render:(v:string)=><Tag color={v==='高'?'red':v==='中'?'orange':'green'}>{v}风险</Tag>},{title:'行前关联',dataIndex:'preDeparture'},{title:'操作',render:(_:unknown,r:any)=> canAction('view') ? <Button type='link' onClick={()=>openAction('view',r)}>签证详情</Button> : null}
       ]} />
     </Card>
   </>
