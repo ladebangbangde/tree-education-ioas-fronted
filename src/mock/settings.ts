@@ -1,14 +1,14 @@
 export const users=[
-{id:'U00',name:'系统超管',mobile:'13600001111',email:'admin@treeedu.com',role:'SUPER_ADMIN',position:'超级管理员',department:'系统管理部',dept:'系统管理部',lastLogin:'2026-05-05 08:30',createdAt:'2025-01-01',enabled:true},
-{id:'U01',name:'Amy顾问',mobile:'13800112233',email:'amy@treeedu.com',role:'STAFF',position:'留学顾问',department:'咨询中心',dept:'咨询中心',lastLogin:'2026-05-05 09:02',createdAt:'2025-07-18',enabled:true},
-{id:'U02',name:'Mia老师',mobile:'13900112244',email:'mia@treeedu.com',role:'STAFF',position:'申请老师',department:'申请交付中心',dept:'申请交付中心',lastLogin:'2026-05-04 18:16',createdAt:'2025-05-12',enabled:true},
-{id:'U03',name:'周航',mobile:'13700112255',email:'zhouhang@treeedu.com',role:'STAFF',position:'文案老师',department:'文案部',dept:'文案部',lastLogin:'2026-05-04 14:08',createdAt:'2025-03-22',enabled:true},
-{id:'U04',name:'刘琪',mobile:'13700112256',email:'liuqi@treeedu.com',role:'STAFF',position:'签证服务',department:'签证部',dept:'签证部',lastLogin:'2026-05-04 14:08',createdAt:'2025-03-22',enabled:false},
-{id:'U05',name:'林娜',mobile:'13500112266',email:'linna@treeedu.com',role:'OPERATOR',position:'运营人员',department:'运营部',dept:'运营部',lastLogin:'2026-05-05 10:16',createdAt:'2025-06-12',enabled:true},
-{id:'U06',name:'陈思',mobile:'13500112277',email:'chensi@treeedu.com',role:'OPERATOR',position:'运营人员',department:'运营部',dept:'运营部',lastLogin:'2026-05-05 11:12',createdAt:'2025-08-20',enabled:true}
+{id:'U00',name:'系统超管',mobile:'13600001111',email:'admin@treeedu.com',role:'SUPER_ADMIN',department:'系统管理部',dept:'系统管理部',lastLogin:'2026-05-05 08:30',createdAt:'2025-01-01',enabled:true},
+{id:'U01',name:'Amy顾问',mobile:'13800112233',email:'amy@treeedu.com',role:'CONSULTANT',department:'咨询中心',dept:'咨询中心',lastLogin:'2026-05-05 09:02',createdAt:'2025-07-18',enabled:true},
+{id:'U02',name:'Mia老师',mobile:'13900112244',email:'mia@treeedu.com',role:'CONSULTANT',department:'申请交付中心',dept:'申请交付中心',lastLogin:'2026-05-04 18:16',createdAt:'2025-05-12',enabled:true},
+{id:'U03',name:'周航',mobile:'13700112255',email:'zhouhang@treeedu.com',role:'CONSULTANT',department:'文案部',dept:'文案部',lastLogin:'2026-05-04 14:08',createdAt:'2025-03-22',enabled:true},
+{id:'U04',name:'刘琪',mobile:'13700112256',email:'liuqi@treeedu.com',role:'CONSULTANT',department:'签证部',dept:'签证部',lastLogin:'2026-05-04 14:08',createdAt:'2025-03-22',enabled:false},
+{id:'U05',name:'林娜',mobile:'13500112266',email:'linna@treeedu.com',role:'OPERATOR',department:'运营部',dept:'运营部',lastLogin:'2026-05-05 10:16',createdAt:'2025-06-12',enabled:true},
+{id:'U06',name:'陈思',mobile:'13500112277',email:'chensi@treeedu.com',role:'OPERATOR',department:'运营部',dept:'运营部',lastLogin:'2026-05-05 11:12',createdAt:'2025-08-20',enabled:true}
 ];
 
-export const roles=['SUPER_ADMIN','STAFF','OPERATOR'];
+export const roles=['SUPER_ADMIN','OPERATOR','CONSULTANT'];
 
 export const dictTypes=[
 {name:'国家',code:'country'},{name:'渠道',code:'channel'},{name:'线索状态',code:'lead_status'},{name:'申请阶段',code:'apply_stage'},{name:'顾问擅长方向',code:'advisor_focus'}
@@ -23,8 +23,8 @@ advisor_focus:[{id:'D9',name:'商科',code:'business',status:'启用',sort:1,rem
 };
 
 export const logs=[
-{id:'LG01',operator:'林娜（运营人员）',module:'线索中心',type:'分配',desc:'将线索 L2026050101 分配给 Amy顾问',time:'2026-05-05 10:20',ip:'10.0.8.21',result:'成功'},
-{id:'LG04',operator:'陈思（运营人员）',module:'CMS专题页',type:'更新',desc:'更新英国国家页推广位',time:'2026-05-05 13:20',ip:'10.0.8.28',result:'成功'},
+{id:'LG01',operator:'林娜（运营）',module:'线索中心',type:'分配',desc:'将线索 L2026050101 分配给 Amy顾问',time:'2026-05-05 10:20',ip:'10.0.8.21',result:'成功'},
+{id:'LG04',operator:'陈思（运营）',module:'CMS专题页',type:'更新',desc:'更新英国国家页推广位',time:'2026-05-05 13:20',ip:'10.0.8.28',result:'成功'},
 {id:'LG02',operator:'Amy顾问',module:'学生档案',type:'更新',desc:'更新赵晴档案中的文书版本',time:'2026-05-04 15:45',ip:'10.0.8.32',result:'成功'},
 {id:'LG03',operator:'周航',module:'CMS文章',type:'发布',desc:'发布文章《英国硕士申请时间线》',time:'2026-05-03 11:05',ip:'10.0.8.45',result:'成功'}
 ];
@@ -47,11 +47,9 @@ export const departments=[
 ];
 
 export const positions=[
-{id:'POS01',name:'留学顾问',dept:'咨询中心',grade:'P5',permission:'线索/档案/跟进',members:26},
-{id:'POS02',name:'申请老师',dept:'申请交付中心',grade:'P4',permission:'申请交付/材料/Offer',members:14},
-{id:'POS03',name:'文案老师',dept:'文案部',grade:'P4',permission:'材料/文书/申请阶段',members:14},
-{id:'POS04',name:'签证服务',dept:'签证部',grade:'P4',permission:'签证/行前/后服务',members:8},
-{id:'POS05',name:'运营人员',dept:'运营部',grade:'P4',permission:'CMS/渠道/运营报表',members:10}
+{id:'POS01',name:'顾问',dept:'咨询/交付业务中心',grade:'P5',permission:'线索/学生/申请/内容协作',members:56},
+{id:'POS02',name:'运营',dept:'运营部',grade:'P4',permission:'CMS/渠道/运营报表',members:10},
+{id:'POS03',name:'超管',dept:'系统管理部',grade:'M6',permission:'全局系统配置/审计治理',members:2}
 ];
 
 export const dataPermissionScopes={

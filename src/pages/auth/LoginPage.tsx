@@ -1,12 +1,16 @@
 import { Button, Card, Checkbox, Form, Input, Select, Typography } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { departmentByPosition, getDefaultRoute, roleLabels, roles, staffPositions } from '@/constants/permissions';
+import { getDefaultRoute, roleLabels, roles } from '@/constants/permissions';
 import { useAuthStore } from '@/store/auth';
-import type { Position, Role } from '@/types';
+import type { Department, Role } from '@/types';
+
+const departmentByRole: Record<Role, Department> = {
+  SUPER_ADMIN: '系统管理部',
+  OPERATOR: '运营部',
+  CONSULTANT: '咨询中心'
+};
 
 export default function LoginPage(){
-  const [form] = Form.useForm();
-  const selectedRole = Form.useWatch('role', form);
   const nav = useNavigate();
   const loc = useLocation();
   const login = useAuthStore(s=>s.login);
@@ -17,20 +21,17 @@ export default function LoginPage(){
       <Card className='login-card'>
         <Typography.Title level={3}>欢迎登录</Typography.Title>
         <Form
-          form={form}
           layout='vertical'
-          initialValues={{username:'运营人员',role:'OPERATOR',position:'留学顾问',remember:true}}
+          initialValues={{username:'运营',role:'OPERATOR',remember:true}}
           onFinish={(v)=>{
             const role = v.role as Role;
-            const position = (role==='STAFF' ? v.position : role==='SUPER_ADMIN' ? '超级管理员' : '运营人员') as Position;
-            login(v.username, v.password, role, { position, department: departmentByPosition[position] });
-            nav((loc.state as any)?.from || getDefaultRoute(role, position));
+            login(v.username, v.password, role, { department: departmentByRole[role] });
+            nav((loc.state as any)?.from || getDefaultRoute(role));
           }}
         >
           <Form.Item label='账号' name='username' rules={[{required:true,message:'请输入账号'}]}><Input placeholder='例如：林娜 / 陈思 / Amy顾问'/></Form.Item>
           <Form.Item label='密码' name='password' rules={[{required:true,message:'请输入密码'}]}><Input.Password/></Form.Item>
           <Form.Item label='后台身份' name='role' rules={[{required:true,message:'请选择身份'}]}><Select options={roles.map(value=>({value,label:`${roleLabels[value]}（${value}）`}))}/></Form.Item>
-          {selectedRole==='STAFF'&&<Form.Item label='老师岗位' name='position' rules={[{required:true,message:'请选择岗位'}]}><Select options={staffPositions.map(value=>({value,label:value}))}/></Form.Item>}
           <Form.Item name='remember' valuePropName='checked'><Checkbox>记住我</Checkbox></Form.Item>
           <Button type='primary' htmlType='submit' block>登录系统</Button>
         </Form>

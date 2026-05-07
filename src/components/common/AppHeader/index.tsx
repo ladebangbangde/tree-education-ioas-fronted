@@ -7,15 +7,14 @@ const { Header } = Layout;
 
 export default function AppHeader(){
   const nav=useNavigate();
-  const {userName,role,position,department,logout}=useAuthStore();
+  const {userName,role,department,logout}=useAuthStore();
   return <Header className='top'>
     <div className='header-left'>tree-education-ioas-fronted</div>
     <Space size={16}>
       <Input className='header-search' prefix={<SearchOutlined/>} placeholder='搜索学生 / 线索 / 任务' />
       <Badge count={6}><BellOutlined className='icon-btn'/></Badge>
       <Tag color='blue'>{roleLabels[role]}</Tag>
-      <Tag color='geekblue'>{position}</Tag>
-      <Tag>{department}</Tag>
+      {department&&<Tag>{department}</Tag>}
       <Dropdown menu={{items:[{key:'logout',icon:<LogoutOutlined/>,label:'退出登录',onClick:()=>{logout();nav('/login');}}]}}>
         <Space className='click user-info'><Avatar icon={<UserOutlined/>}/>{userName}</Space>
       </Dropdown>
