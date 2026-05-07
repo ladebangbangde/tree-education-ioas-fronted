@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { ConfigProvider } from 'antd';
+import { App, ConfigProvider } from 'antd';
 import { BrowserRouter } from 'react-router-dom';
 import AppRouter from './app/router';
 import './styles/global.scss';
@@ -21,7 +21,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         },
       },
     }}>
-      <BrowserRouter><AppRouter /></BrowserRouter>
+      <App><BrowserRouter><AppRouter /></BrowserRouter></App>
     </ConfigProvider>
   </React.StrictMode>
 );

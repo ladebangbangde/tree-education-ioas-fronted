@@ -1,20 +1,5 @@
-import { Alert, Card, Col, List, Row, Tag } from 'antd';
+import { Alert, Button, Card, Col, List, Row, Tag } from 'antd';import { useNavigate } from 'react-router-dom';
 import { ApplicationStageCard, PageHeader, TaskListCard } from '@/components';
-import { kanbanColumns, kanbanData } from '@/mock/applications';
-import { tasks } from '@/mock/tasks';
-
-export default function ApplicationsKanbanPage(){
-  return <>
-    <PageHeader title='申请交付看板'/>
-    <Row gutter={[16,16]}>
-      {kanbanColumns.map(c=><Col span={4} key={c}><Card title={c} bodyStyle={{padding:8}}>{kanbanData[c as keyof typeof kanbanData].map(s=><div key={s.name}><ApplicationStageCard {...s} /><Tag color='orange'>{s.alert}</Tag></div>)}</Card></Col>)}
-      <Col span={24} className='mt12'>
-        <Row gutter={[16,16]}>
-          <Col span={8}><TaskListCard title='今日待办' data={tasks.todo}/></Col>
-          <Col span={8}><TaskListCard title='超期任务' data={tasks.timeout}/></Col>
-          <Col span={8}><Card title='风险提醒'><List size='small' dataSource={['张成业：资金证明需更新','周可欣：推荐信签字延误','沈悦：面签材料缺体检回执']} renderItem={i=><List.Item><Alert type='warning' showIcon message={i}/></List.Item>}/></Card></Col>
-        </Row>
-      </Col>
-    </Row>
-  </>
-}
+import { kanbanColumns, kanbanData } from '@/mock/applications';import { tasks } from '@/mock/tasks';
+const stagePath:Record<string,string>={'选校规划':'school','文书准备':'essay','网申提交':'online','Offer跟进':'offer','签证办理':'visa','行前准备':'pre'};
+export default function ApplicationsKanbanPage(){const nav=useNavigate();return <><PageHeader title='申请交付看板' extra={<Button onClick={()=>nav('/applications/stage/risk')}>风险提醒详情</Button>}/><Row gutter={[16,16]}>{kanbanColumns.map(c=><Col span={4} key={c}><Card title={c} extra={<Button type='link' onClick={()=>nav(`/applications/stage/${stagePath[c]}`)}>详情</Button>} bodyStyle={{padding:8}}>{kanbanData[c as keyof typeof kanbanData].map(s=><div key={s.name} onClick={()=>nav(`/applications/stage/${stagePath[c]}`)} style={{cursor:'pointer'}}><ApplicationStageCard {...s} /><Tag color='orange'>{s.alert}</Tag></div>)}</Card></Col>)}<Col span={24} className='mt12'><Row gutter={[16,16]}><Col span={8}><TaskListCard title='今日待办' data={tasks.todo}/></Col><Col span={8}><TaskListCard title='超期任务' data={tasks.timeout}/></Col><Col span={8}><Card title='风险提醒' extra={<Button type='link' onClick={()=>nav('/applications/stage/risk')}>查看全部</Button>}><List size='small' dataSource={['张成业：资金证明需更新','周可欣：推荐信签字延误','沈悦：面签材料缺体检回执']} renderItem={i=><List.Item><Alert type='warning' showIcon message={i}/></List.Item>}/></Card></Col></Row></Col></Row></>}

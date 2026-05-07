@@ -1,14 +1,16 @@
-import { Avatar, Card, Col, Descriptions, List, Progress, Row, Space, Table, Tabs, Tag } from 'antd';
+import { Avatar, Button, Card, Col, Descriptions, List, Progress, Row, Space, Table, Tabs, Tag } from 'antd';
 import { PageHeader, StatusTag, StudentOverviewCard } from '@/components';
 import { studentBackground, studentContract, studentFollowRecords, studentMaterials, studentPlan, students, studentTodos } from '@/mock/students';
 import { LeadTimeline } from '@/components';
+import { useEnterpriseActions } from '@/hooks/useEnterpriseActions';
 
 export default function StudentsDetailPage(){
   const st = students[0];
+  const {openAction, contextHolder} = useEnterpriseActions('学生档案详情');
   const materialColumns=[{title:'材料名称',dataIndex:'name'},{title:'状态',dataIndex:'status',render:(v:string)=><StatusTag status={v}/>},{title:'截止时间',dataIndex:'deadline'},{title:'负责人',dataIndex:'owner'},{title:'备注',dataIndex:'remark'}];
 
-  return <>
-    <PageHeader title='学生档案详情' />
+  return <>{contextHolder}
+    <PageHeader title='学生档案详情' extra={<Space><Button onClick={()=>openAction('edit',st)}>编辑学生信息</Button><Button onClick={()=>openAction('stage',st)}>服务阶段变更</Button><Button type='primary' onClick={()=>openAction('advisor',st)}>顾问更换</Button></Space>} />
     <Row gutter={[16,16]}>
       <Col span={18}>
         <Card className='mb12'>
@@ -28,27 +30,27 @@ export default function StudentsDetailPage(){
 
         <Card>
           <Tabs items={[
-            {key:'basic',label:'基本信息',children:<Descriptions column={2} items={[
+            {key:'basic',label:'基本信息',children:<><Button className='mb12' onClick={()=>openAction('edit',st)}>编辑学生信息</Button><Descriptions column={2} items={[
               {label:'姓名',children:st.name},{label:'性别',children:st.gender},{label:'生日',children:st.birthday},{label:'联系方式',children:st.phone},
               {label:'邮箱',children:st.email},{label:'本科院校',children:st.university},{label:'专业',children:st.major},{label:'GPA',children:st.gpa},
               {label:'语言成绩',children:`雅思 ${st.ielts}`},{label:'预算',children:st.budget},{label:'目标方向',children:st.target}
-            ]}/>},
-            {key:'bg',label:'背景资料',children:<>
+            ]}/></>},
+            {key:'bg',label:'背景资料',children:<><Button className='mb12' onClick={()=>openAction('edit',studentBackground)}>编辑背景资料</Button>
               <Card type='inner' title='教育背景' className='mb12'><List dataSource={studentBackground.education} renderItem={i=><List.Item>{i}</List.Item>}/></Card>
               <Card type='inner' title='实习经历' className='mb12'><List dataSource={studentBackground.internships} renderItem={i=><List.Item>{i}</List.Item>}/></Card>
               <Card type='inner' title='科研经历' className='mb12'><List dataSource={studentBackground.research} renderItem={i=><List.Item>{i}</List.Item>}/></Card>
               <Card type='inner' title='竞赛经历' className='mb12'><List dataSource={studentBackground.awards} renderItem={i=><List.Item>{i}</List.Item>}/></Card>
               <Card type='inner' title='补充说明'>{studentBackground.notes}</Card>
             </>},
-            {key:'plan',label:'申请方案',children:<Descriptions column={1} items={[
+            {key:'plan',label:'申请方案',children:<><Button className='mb12' onClick={()=>openAction('view',studentPlan)}>查看申请方案详情</Button><Descriptions column={1} items={[
               {label:'国家方案',children:studentPlan.countryPlan},{label:'专业方向',children:studentPlan.majorDirection},{label:'院校梯度',children:studentPlan.schoolTier},
               {label:'冲刺院校',children:studentPlan.schools.sprint.join('；')},{label:'主申院校',children:studentPlan.schools.main.join('；')},{label:'保底院校',children:studentPlan.schools.safe.join('；')}
-            ]}/>},
-            {key:'contract',label:'合同信息',children:<Descriptions column={2} items={[
+            ]}/></>},
+            {key:'contract',label:'合同信息',children:<><Button className='mb12' onClick={()=>openAction('view',studentContract)}>查看合同详情</Button><Descriptions column={2} items={[
               {label:'签约时间',children:studentContract.signAt},{label:'套餐',children:studentContract.pkg},{label:'合同金额',children:studentContract.amount},{label:'当前支付状态',children:studentContract.paymentStatus},{label:'付款节点',children:studentContract.paymentNodes.join(' | ')}
-            ]}/>},
-            {key:'materials',label:'材料清单',children:<Table rowKey='id' columns={materialColumns} dataSource={studentMaterials} pagination={false}/>},
-            {key:'follow',label:'跟进记录',children:<LeadTimeline items={studentFollowRecords} />}
+            ]}/></>},
+            {key:'materials',label:'材料清单',children:<><Button className='mb12' onClick={()=>openAction('file',st)}>查看材料详情</Button><Table rowKey='id' columns={materialColumns} dataSource={studentMaterials} pagination={false}/></>},
+            {key:'follow',label:'跟进记录',children:<><Button className='mb12' onClick={()=>openAction('follow',st)}>查看/新增跟进记录</Button><LeadTimeline items={studentFollowRecords} /></>}
           ]} />
         </Card>
 
@@ -61,7 +63,7 @@ export default function StudentsDetailPage(){
         </Card>
       </Col>
       <Col span={6}>
-        <StudentOverviewCard/>
+        <StudentOverviewCard/><Card className='mt12' title='快捷操作'><Space direction='vertical' style={{width:'100%'}}><Button block onClick={()=>openAction('stage',st)}>服务阶段变更</Button><Button block onClick={()=>openAction('advisor',st)}>顾问更换</Button><Button block onClick={()=>openAction('file',st)}>材料详情</Button></Space></Card>
         <Card className='mt12' title='风险等级'><Tag color='orange'>中风险</Tag><p className='mt12'>推荐信签字存在延期风险，需要在 2026-05-12 前完成。</p></Card>
       </Col>
     </Row>

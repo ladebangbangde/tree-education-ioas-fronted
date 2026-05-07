@@ -1,9 +1,11 @@
-import { Button, DatePicker, Form, Input, Select } from 'antd';
+import { Button, DatePicker, Form, Input, Select, Space } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { DataTable, PageHeader, SearchFilterBar } from '@/components';
 import { logs } from '@/mock/settings';
 
 export default function LogsPage(){
-  const columns=[{title:'操作人',dataIndex:'operator'},{title:'模块',dataIndex:'module'},{title:'操作类型',dataIndex:'type'},{title:'描述',dataIndex:'desc'},{title:'IP',dataIndex:'ip'},{title:'时间',dataIndex:'time'},{title:'结果',dataIndex:'result'}];
+  const nav=useNavigate();
+  const columns=[{title:'操作人',dataIndex:'operator'},{title:'模块',dataIndex:'module'},{title:'操作类型',dataIndex:'type'},{title:'描述',dataIndex:'desc'},{title:'IP',dataIndex:'ip'},{title:'时间',dataIndex:'time'},{title:'结果',dataIndex:'result'},{title:'操作',render:(_:unknown,r:any)=><Space><Button type='link' onClick={()=>nav(`/settings/opLog/detail/${r.id}`)}>操作日志详情</Button><Button type='link' onClick={()=>nav(`/settings/loginLog/detail/${r.id}`)}>登录日志详情</Button></Space>}];
   return <>
     <PageHeader title='审计日志'/>
     <SearchFilterBar>

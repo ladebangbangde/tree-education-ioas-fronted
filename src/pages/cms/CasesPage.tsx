@@ -1,8 +1,3 @@
-import { Button, Space, Tag } from 'antd';
-import { DataTable, PageHeader } from '@/components';
-import { cases } from '@/mock/cms';
-
-export default function CasesPage(){
-  const columns=[{title:'案例标题',dataIndex:'title'},{title:'国家',dataIndex:'country'},{title:'院校',dataIndex:'school'},{title:'专业',dataIndex:'major'},{title:'顾问',dataIndex:'advisor'},{title:'发布时间',dataIndex:'publishAt'},{title:'状态',dataIndex:'status',render:(v:string)=><Tag color={v==='已发布'?'green':'blue'}>{v}</Tag>},{title:'操作',render:()=> <Space><Button type='link'>预览</Button><Button type='link'>编辑</Button></Space>}];
-  return <><PageHeader title='CMS / 成功案例管理'/><DataTable rowKey='id' columns={columns} dataSource={cases} /></>
-}
+import { Button, Space, Tag } from 'antd';import { useNavigate } from 'react-router-dom';
+import { DataTable, PageHeader } from '@/components';import { cases } from '@/mock/cms';import { useEnterpriseActions } from '@/hooks/useEnterpriseActions';
+export default function CasesPage(){const nav=useNavigate();const {openAction,contextHolder}=useEnterpriseActions('成功案例');const columns=[{title:'案例标题',dataIndex:'title'},{title:'国家',dataIndex:'country'},{title:'院校',dataIndex:'school'},{title:'专业',dataIndex:'major'},{title:'顾问',dataIndex:'advisor'},{title:'发布时间',dataIndex:'publishAt'},{title:'状态',dataIndex:'status',render:(v:string)=><Tag color={v==='已发布'?'green':'blue'}>{v}</Tag>},{title:'操作',render:(_:unknown,r:any)=> <Space><Button type='link' onClick={()=>nav(`/cms/case/detail/${r.id}`)}>详情</Button><Button type='link' onClick={()=>nav(`/cms/case/preview/${r.id}`)}>预览</Button><Button type='link' onClick={()=>nav(`/cms/case/edit/${r.id}`)}>编辑</Button><Button type='link' onClick={()=>openAction('publish',r)}>发布</Button></Space>}];return <>{contextHolder}<PageHeader title='CMS / 成功案例管理' extra={<Space><Button onClick={()=>nav('/cms/config/country')}>国家页详情</Button><Button onClick={()=>nav('/cms/config/school')}>院校页详情</Button><Button type='primary' onClick={()=>nav('/cms/case/edit/C01')}>新建案例</Button></Space>}/><DataTable rowKey='id' columns={columns} dataSource={cases} /></>}
