@@ -23,3 +23,42 @@ export const logs=[
 {id:'LG02',operator:'Amy顾问',module:'学生档案',type:'更新',desc:'更新赵晴档案中的文书版本',time:'2026-05-04 15:45',ip:'10.0.8.32',result:'成功'},
 {id:'LG03',operator:'周航',module:'CMS文章',type:'发布',desc:'发布文章《英国硕士申请时间线》',time:'2026-05-03 11:05',ip:'10.0.8.45',result:'成功'}
 ];
+
+export const advisorProfiles=[
+{id:'ADV01',name:'Amy顾问',level:'高级顾问',countries:'英国/澳洲',focus:'商科/管理',load:12,convert:95},
+{id:'ADV02',name:'Tom顾问',level:'资深顾问',countries:'美国/加拿大',focus:'理工科/数据科学',load:18,convert:88},
+{id:'ADV03',name:'Sally顾问',level:'高级顾问',countries:'新加坡/中国香港',focus:'商科/传媒',load:10,convert:90}
+];
+
+export const departmentTree=[
+{title:'Tree Education',key:'root',children:[{title:'咨询中心',key:'consulting',children:[{title:'咨询一部',key:'consulting-1'},{title:'咨询二部',key:'consulting-2'}]},{title:'交付中心',key:'delivery',children:[{title:'文案部',key:'copywriting'},{title:'签证部',key:'visa'}]},{title:'运营中心',key:'operation'}]}
+];
+
+export const departments=[
+{id:'DEP01',name:'咨询一部',owner:'Amy顾问',members:18,status:'启用',desc:'负责英国、澳洲方向咨询转化'},
+{id:'DEP02',name:'文案部',owner:'周航',members:12,status:'启用',desc:'负责申请文书与材料润色'},
+{id:'DEP03',name:'签证部',owner:'刘琪',members:8,status:'启用',desc:'负责签证材料审核与递签辅导'},
+{id:'DEP04',name:'运营部',owner:'林娜',members:10,status:'启用',desc:'负责内容、活动与渠道运营'}
+];
+
+export const positions=[
+{id:'POS01',name:'留学顾问',dept:'咨询中心',grade:'P5',permission:'线索/档案/跟进',members:26},
+{id:'POS02',name:'文案老师',dept:'交付中心',grade:'P4',permission:'材料/文书/申请阶段',members:14},
+{id:'POS03',name:'签证老师',dept:'交付中心',grade:'P4',permission:'签证/材料/日志',members:8}
+];
+
+export const dataPermissionScopes={
+departments:['咨询一部','咨询二部','文案部','签证部','运营部'],
+modules:['线索中心','学生档案','申请交付','CMS','数据报表'],
+rules:['按所属部门隔离线索与学生档案数据','跨部门协作需通过角色授权开放','敏感报表默认仅超级管理员可见']
+};
+
+export const menuPermissionTree=[
+{title:'工作台',key:'dashboard'},{title:'线索中心',key:'leads',children:[{title:'线索列表',key:'leads-list'},{title:'线索分配',key:'leads-assign'}]},{title:'内容管理',key:'cms',children:[{title:'文章管理',key:'cms-articles'},{title:'成功案例',key:'cms-cases'}]},{title:'系统设置',key:'settings'}
+];
+
+export const menuPermissionRows=[
+{key:'lead',module:'线索中心',view:'允许',create:'允许',edit:'允许',export:'允许'},
+{key:'student',module:'学生档案',view:'允许',create:'允许',edit:'允许',export:'禁止'},
+{key:'cms',module:'内容管理',view:'允许',create:'允许',edit:'允许',export:'禁止'}
+];

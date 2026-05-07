@@ -27,7 +27,7 @@ export default function LeadsAssignPage(){
 
     <Row gutter={[16,16]}>
       <Col span={9}>
-        <Card title='顾问池（可选）'>
+        <Card className='advisor-pool-card' title='顾问池（可选）'>
           <List dataSource={advisors} renderItem={(a)=><List.Item className={`advisor-item ${selectedAdvisor===a.name?'active':''}`} onClick={()=>setSelectedAdvisor(a.name)}>
             <List.Item.Meta avatar={<Avatar>{a.name[0]}</Avatar>} title={<Space>{a.name}{selectedAdvisor===a.name&&<Tag color='blue'>已选中</Tag>}</Space>} description={<Space direction='vertical' size={2}><span>擅长国家：{a.countries}</span><span>擅长方向：{a.focus}</span><span>当前负载：{a.load} 单</span><span>最近接单量：{a.recentOrders} 单</span><span>历史转化率：<b>{a.convert}%</b></span><Progress percent={a.convert} size='small'/></Space>} />
           </List.Item>} />
