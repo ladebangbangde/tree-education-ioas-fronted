@@ -3,7 +3,7 @@ import { App, Button, Descriptions, Drawer, Form, Input, Modal, Select, Space, T
 import { UploadOutlined } from '@ant-design/icons';
 
 type ActionKind = 'view'|'edit'|'more'|'assign'|'follow'|'convert'|'highIntent'|'batch'|'export'|'new'|'preview'|'publish'|'offline'|'permission'|'log'|'file'|'config'|'stage'|'advisor'|'resetPassword';
-type AnyRecord = Record<string, unknown>;
+type AnyRecord = object;
 
 const drawerActions = new Set<ActionKind>(['view','edit','more','follow','preview','permission','log','file','config']);
 const modalActions = new Set<ActionKind>(['assign','convert','highIntent','batch','export','new','publish','offline','stage','advisor','resetPassword']);
@@ -12,7 +12,8 @@ const actionTitles: Record<ActionKind, string> = {
 };
 
 function valueOf(record: AnyRecord | undefined, keys: string[], fallback = '-') {
-  const found = keys.map(k => record?.[k]).find(v => v !== undefined && v !== null && v !== '');
+  const source = (record || {}) as Record<string, unknown>;
+  const found = keys.map(k => source[k]).find(v => v !== undefined && v !== null && v !== '');
   return String(found ?? fallback);
 }
 

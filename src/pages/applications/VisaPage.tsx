@@ -1,4 +1,4 @@
-import { Card, Col, Progress, Row, Table, Tag } from 'antd';
+import { Button, Card, Col, Progress, Row, Table, Tag } from 'antd';
 import { PageHeader } from '@/components';
 import { visaCases } from '@/mock/applications';
 import { useEnterpriseActions } from '@/hooks/useEnterpriseActions';
