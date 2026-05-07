@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { App, Button, Descriptions, Drawer, Form, Input, Modal, Select, Space, Table, Tabs, Tag, Timeline, Upload } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
+import { usePermission } from '@/hooks/usePermission';
 
 type ActionKind = 'view'|'edit'|'more'|'assign'|'follow'|'convert'|'highIntent'|'batch'|'export'|'new'|'preview'|'publish'|'offline'|'permission'|'log'|'file'|'config'|'stage'|'advisor'|'resetPassword';
 type AnyRecord = object;
@@ -73,9 +74,12 @@ function ModalContent({ action, record }: { action: ActionKind; record?: AnyReco
 
 export function useEnterpriseActions(scope: string) {
   const { message } = App.useApp();
+  const { hasButtonPermission } = usePermission();
   const [drawer, setDrawer] = useState<{ open: boolean; action: ActionKind; record?: AnyRecord }>({ open:false, action:'view' });
   const [modal, setModal] = useState<{ open: boolean; action: ActionKind; record?: AnyRecord }>({ open:false, action:'new' });
+  const canAction = (action: ActionKind) => hasButtonPermission(action as any);
   const openAction = (action: ActionKind, record?: AnyRecord) => {
+    if (!canAction(action)) { message.warning('当前角色无此操作权限'); return; }
     if (drawerActions.has(action)) setDrawer({ open:true, action, record });
     if (modalActions.has(action)) setModal({ open:true, action, record });
   };
@@ -83,5 +87,5 @@ export function useEnterpriseActions(scope: string) {
     <Drawer width={720} destroyOnClose title={`${scope} · ${actionTitles[drawer.action]}`} open={drawer.open} onClose={()=>setDrawer(d=>({...d, open:false}))} extra={<Button type='primary' onClick={()=>{ message.success('Mock 已保存'); setDrawer(d=>({...d, open:false})); }}>保存</Button>}><DrawerContent action={drawer.action} record={drawer.record} /></Drawer>
     <Modal title={`${scope} · ${actionTitles[modal.action]}`} open={modal.open} onCancel={()=>setModal(m=>({...m, open:false}))} onOk={()=>{ message.success('Mock 操作已完成'); setModal(m=>({...m, open:false})); }} destroyOnClose><ModalContent action={modal.action} record={modal.record} /></Modal>
   </>, [drawer, modal, message, scope]);
-  return { openAction, contextHolder };
+  return { openAction, canAction, contextHolder };
 }
