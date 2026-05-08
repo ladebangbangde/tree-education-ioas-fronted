@@ -9,10 +9,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   token,
   role: storedRole,
   userName: localStorage.getItem('userName') || '运营',
-  department: (localStorage.getItem('department') as Department) || (storedRole === 'SUPER_ADMIN' ? '系统管理部' : storedRole === 'CONSULTANT' ? '咨询中心' : '运营部'),
+  department: (localStorage.getItem('department') as Department) || (storedRole === 'SUPER_ADMIN' ? '系统管理部' : storedRole === 'CONSULTANT' ? '咨询中心' : storedRole === 'MEDIA' ? '媒体部' : '运营部'),
   isLogin: Boolean(token),
   login: (name, _pwd, role = 'OPERATOR', profile = {}) => {
-    const department = profile.department || (role === 'SUPER_ADMIN' ? '系统管理部' : role === 'CONSULTANT' ? '咨询中心' : '运营部');
+    const department = profile.department || (role === 'SUPER_ADMIN' ? '系统管理部' : role === 'CONSULTANT' ? '咨询中心' : role === 'MEDIA' ? '媒体部' : '运营部');
     localStorage.setItem('token', 'mock-token');
     localStorage.setItem('role', role);
     localStorage.setItem('userName', name);
