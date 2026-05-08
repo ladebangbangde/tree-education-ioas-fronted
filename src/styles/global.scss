@@ -23,3 +23,6 @@ body{margin:0;background:var(--bg);font-family:PingFang SC,Segoe UI,sans-serif;c
 .cover-thumb{width:76px;height:52px;object-fit:cover;border-radius:8px;display:block}
 .package-detail-head{width:100%;padding:8px 0 4px}.asset-group{margin-bottom:18px}.asset-group h5{margin-bottom:8px!important}
 .folder-panel .ant-card-body{min-height:520px}.folder-icon{font-size:22px;color:#f5b83d}.folder-card{border:1px solid #e7edf8;background:#fbfcff}.folder-card:hover{border-color:#91caff;background:#f0f7ff}.ant-tree .ant-tree-node-content-wrapper{border-radius:8px;padding-inline:6px!important}
+.resource-toolbar{align-items:center;padding-right:6px}.resource-toolbar .ant-btn{height:36px;border-radius:18px;padding-inline:18px;font-weight:500}.resource-toolbar .ant-input-search{border-radius:18px}.resource-toolbar .ant-select-selector{border-radius:18px!important}
+.folder-action-bar{align-items:center}.folder-action-bar .ant-btn{height:34px;border-radius:18px;padding-inline:18px;font-weight:500}.folder-action-bar .ant-btn-dangerous{border-color:#ffccc7;background:#fff7f6}.folder-action-bar .ant-btn-dangerous:hover{background:#fff1f0!important}
+.top{padding-right:36px}.top>.ant-space{padding-right:8px}.user-info{margin-right:10px}

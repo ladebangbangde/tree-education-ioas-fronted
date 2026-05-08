@@ -58,7 +58,7 @@ export default function MediaResourceCenterPage(){
     setUploadOpen(false); uploadForm.resetFields(); message.success('文件已上传到所选主题包，并按脚本/视频/图片自动归档');
   };
   return <>
-    <PageHeader title='媒体资源中心' extra={<Space>
+    <PageHeader title='媒体资源中心' extra={<Space className='resource-toolbar' size={12}>
       <Input.Search allowClear placeholder='搜索主题 / 运营' onSearch={setQuery} style={{ width: 240 }} />
       <Select allowClear placeholder='筛选运营' value={operatorId} onChange={setOperatorId} style={{ width: 180 }} options={operatorProfiles.map(op => ({ value: op.id, label: op.name }))} />
       {canUseButton(role, 'upload') && <Button icon={<UploadOutlined />} onClick={() => openUpload()}>上传文件</Button>}

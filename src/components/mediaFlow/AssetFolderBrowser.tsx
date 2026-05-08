@@ -17,7 +17,8 @@ export interface ResourceActionPermissions {
 }
 
 export default function AssetFolderBrowser({ packages, files, permissions, onView, onPreview, onDownload, onEdit, onDelete, onUpload, onGenerateLead }: { packages: ContentPackage[]; files: AssetFile[]; permissions: ResourceActionPermissions; onView: (pkg: ContentPackage) => void; onPreview?: (file: AssetFile) => void; onDownload?: (file: AssetFile) => void; onEdit?: (pkg: ContentPackage) => void; onDelete?: (pkg: ContentPackage) => void; onUpload?: (pkg: ContentPackage) => void; onGenerateLead?: (pkg: ContentPackage) => void }) {
-  const [selectedPackageId, setSelectedPackageId] = useState(packages[0]?.id);
+  const [selectedTreeKey, setSelectedTreeKey] = useState<string>();
+  const [selectedPackageId, setSelectedPackageId] = useState<string>();
   const treeData = useMemo<DataNode[]>(() => {
     const operatorMap = new Map<string, ContentPackage[]>();
     packages.forEach(pkg => operatorMap.set(pkg.operatorName, [...(operatorMap.get(pkg.operatorName) || []), pkg]));
@@ -33,27 +34,29 @@ export default function AssetFolderBrowser({ packages, files, permissions, onVie
       }))
     }));
   }, [packages]);
-  const current = packages.find(pkg => pkg.id === selectedPackageId) || packages[0];
+  const current = packages.find(pkg => pkg.id === selectedPackageId);
   const currentFiles = current ? files.filter(file => file.packageId === current.id) : [];
-  const packageActions = current ? <Space>
+  const packageActions = current ? <Space className='folder-action-bar' size={10}>
     <Button onClick={() => onView(current)}>查看详情</Button>
     {permissions.canEdit && <Button icon={<EditOutlined />} onClick={() => onEdit?.(current)}>编辑</Button>}
-    {permissions.canUpload && <Button icon={<UploadOutlined />} onClick={() => onUpload?.(current)}>上传文件</Button>}
+    {permissions.canUpload && <Button type='primary' icon={<UploadOutlined />} onClick={() => onUpload?.(current)}>上传文件</Button>}
     {permissions.canDelete && <Popconfirm title='确认删除该主题包？' onConfirm={() => onDelete?.(current)}><Button danger icon={<DeleteOutlined />}>删除</Button></Popconfirm>}
     {permissions.canGenerateLead && <Button type='primary' onClick={() => onGenerateLead?.(current)}>基于素材生成线索</Button>}
   </Space> : null;
   return <Row gutter={[16, 16]}>
     <Col span={7}>
       <Card title='素材目录树' className='folder-panel'>
-        <Tree showIcon defaultExpandAll treeData={treeData} selectedKeys={selectedPackageId ? [selectedPackageId] : []} onSelect={keys => {
+        <Tree showIcon defaultExpandAll treeData={treeData} selectedKeys={selectedTreeKey ? [selectedTreeKey] : []} onSelect={keys => {
           const key = String(keys[0] || '');
+          setSelectedTreeKey(key || undefined);
+          if (!key) { setSelectedPackageId(undefined); return; }
           const packageId = key.includes('-') ? key.split('-').slice(0, -1).join('-') : key;
-          if (packages.some(pkg => pkg.id === packageId)) setSelectedPackageId(packageId);
+          setSelectedPackageId(packages.some(pkg => pkg.id === packageId) ? packageId : undefined);
         }} />
       </Card>
     </Col>
     <Col span={17}>
-      {!current ? <Empty description='暂无素材主题' /> : <Card title={<Space><FolderFilled className='folder-icon' />{current.operatorName} / {current.folderPath.year} / {String(current.folderPath.month).padStart(2, '0')} / {String(current.folderPath.day).padStart(2, '0')} / {current.topicName}</Space>} extra={packageActions}>
+      {!current ? <Empty description='请选择一个主题包查看素材，选择运营上级目录时会取消当前主题包焦点' /> : <Card title={<Space><FolderFilled className='folder-icon' />{current.operatorName} / {current.folderPath.year} / {String(current.folderPath.month).padStart(2, '0')} / {String(current.folderPath.day).padStart(2, '0')} / {current.topicName}</Space>} extra={packageActions}>
         <Row gutter={[12, 12]} className='mb12'>
           {(['script','video','image'] as AssetFileType[]).map(type => <Col span={8} key={type}>
             <Card size='small' className='folder-card'><Space><FolderFilled className='folder-icon' /><div><b>{typeLabel[type]}</b><br/><Typography.Text type='secondary'>{currentFiles.filter(file => file.fileType === type).length} 个文件</Typography.Text></div></Space></Card>
