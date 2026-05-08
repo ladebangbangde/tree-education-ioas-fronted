@@ -39,7 +39,7 @@ function FileActions({ file, permissions, onPreview, onDownload, onDeleteFile }:
   return <Space split={<span className='asset-action-split' />}>
     {permissions.canDownload && <Button type='link' icon={<DownloadOutlined />} onClick={() => onDownload?.(file)}>下载</Button>}
     {permissions.canPreview && <Button type='link' onClick={() => onPreview?.(file)}>{file.fileType === 'script' ? '预览脚本' : file.fileType === 'image' ? '预览图片' : '播放视频'}</Button>}
-    {permissions.canDelete && <Popconfirm title='删除该文件后，主题包仍会保留，相关文件数量将同步更新，是否继续？' onConfirm={() => onDeleteFile?.(file)}><Button type='link' danger icon={<DeleteOutlined />}>删除文件</Button></Popconfirm>}
+    {permissions.canDelete && <Popconfirm title='删除后文件将移入回收站，并在 7 天后自动永久删除。7 天内可恢复。' onConfirm={() => onDeleteFile?.(file)}><Button type='link' danger icon={<DeleteOutlined />}>删除文件</Button></Popconfirm>}
     {statusTag(file)}
   </Space>;
 }

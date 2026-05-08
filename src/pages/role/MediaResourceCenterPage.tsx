@@ -1,5 +1,6 @@
 import { Button, Form, Input, Modal, Select, Space, Upload, message } from 'antd';
 import { DownloadOutlined, InboxOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { PageHeader } from '@/components';
 import AssetFolderBrowser from '@/components/mediaFlow/AssetFolderBrowser';
@@ -19,6 +20,7 @@ export default function MediaResourceCenterPage(){
   const role = useAuthStore(s => s.role);
   const [packages, setPackages] = useState(contentPackages);
   const [files, setFiles] = useState<AssetFile[]>(assetFiles);
+  const [deletedFiles, setDeletedFiles] = useState<AssetFile[]>([]);
   const [detail, setDetail] = useState<ContentPackage>();
   const [leadPackage, setLeadPackage] = useState<ContentPackage>();
   const [editPackage, setEditPackage] = useState<ContentPackage>();
@@ -60,15 +62,20 @@ export default function MediaResourceCenterPage(){
     } : pkg));
   };
   const deleteFileFromPackage = (file: AssetFile) => {
+    const pkg = packages.find(item => item.id === file.packageId);
+    const deletedAt = dayjs('2026-05-08 10:00');
+    const recycled: AssetFile = { ...file, isDeleted: true, deletedAt: deletedAt.format('YYYY-MM-DD HH:mm'), deletedBy: '媒体账号-王悦', purgeAt: deletedAt.add(7, 'day').format('YYYY-MM-DD HH:mm'), originalPath: pkg ? `${pkg.operatorName} / ${pkg.folderPath.year} / ${String(pkg.folderPath.month).padStart(2, '0')} / ${String(pkg.folderPath.day).padStart(2, '0')} / ${pkg.topicName}` : file.originalPath, referenceStatus: '未被线索引用' };
     const nextFiles = files.filter(item => item.id !== file.id);
     setFiles(nextFiles);
+    setDeletedFiles(prev => [recycled, ...prev]);
     syncPackageCounts(file.packageId, nextFiles);
-    message.success('已删除文件，主题包仍保留，文件数量已同步更新');
+    message.success('文件已移入回收站，7 天内可恢复，7 天后服务器定时永久删除');
   };
   const deletePackageWithFiles = (pkg: ContentPackage) => {
     setPackages(prev => prev.filter(item => item.id !== pkg.id));
     setFiles(prev => prev.filter(file => file.packageId !== pkg.id));
     if (detail?.id === pkg.id) setDetail(undefined);
+    setDeletedFiles(prev => prev.filter(file => file.packageId !== pkg.id));
     message.success('已删除主题包及其全部文件');
   };
   const uploadFilesToPackage = (values: any) => {

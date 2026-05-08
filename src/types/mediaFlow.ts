@@ -44,6 +44,13 @@ export interface AssetFile {
   previewUrl?: string;
   uploadStatus: UploadStatus;
   sortOrder: number;
+  isDeleted?: boolean;
+  deletedAt?: string | null;
+  deletedBy?: string | null;
+  purgeAt?: string | null;
+  deleteReason?: string;
+  originalPath?: string;
+  referenceStatus?: string;
 }
 
 export interface Task {
