@@ -29,7 +29,8 @@ export default function MediaResourceCenterPage(){
   const [createForm] = Form.useForm();
   const [uploadForm] = Form.useForm();
   const [editForm] = Form.useForm();
-  const detailFiles = useMemo(() => files.filter(file => file.packageId === detail?.id), [detail, files]);
+  const detailPackage = useMemo(() => packages.find(pkg => pkg.id === detail?.id), [detail, packages]);
+  const detailFiles = useMemo(() => files.filter(file => file.packageId === detailPackage?.id), [detailPackage, files]);
   const filteredPackages = packages.filter(pkg => (!query || pkg.topicName.includes(query) || pkg.operatorName.includes(query)) && (!operatorId || pkg.operatorId === operatorId));
   const permissions = {
     canPreview: canUseButton(role, 'preview'),
@@ -48,13 +49,35 @@ export default function MediaResourceCenterPage(){
     setPackages(prev => [next, ...prev]); setCreateOpen(false); createForm.resetFields(); message.success(`已创建主题包：${next.folderPath.operatorName} / 2026 / 05 / 08 / ${next.topicName}`);
   };
   const buildFiles = (packageId: string, values: any) => (['script', 'video', 'image'] as AssetFileType[]).flatMap(type => (values[type]?.fileList || []).map((file: any, index: number) => ({ id: `AST${Date.now()}${type}${index}`, packageId, fileName: file.name || fileMeta[type].defaultName, fileType: type, mimeType: file.type || fileMeta[type].mimeType, fileSize: file.size || 0, uploadStatus: 'success' as const, sortOrder: files.filter(item => item.packageId === packageId && item.fileType === type).length + index + 1 })));
+  const syncPackageCounts = (packageId: string, nextFiles: AssetFile[]) => {
+    const packageFiles = nextFiles.filter(file => file.packageId === packageId);
+    setPackages(prev => prev.map(pkg => pkg.id === packageId ? {
+      ...pkg,
+      scriptCount: packageFiles.filter(file => file.fileType === 'script').length,
+      videoCount: packageFiles.filter(file => file.fileType === 'video').length,
+      imageCount: packageFiles.filter(file => file.fileType === 'image').length,
+      uploadStatus: packageFiles.length ? 'completed' : 'pending_upload'
+    } : pkg));
+  };
+  const deleteFileFromPackage = (file: AssetFile) => {
+    const nextFiles = files.filter(item => item.id !== file.id);
+    setFiles(nextFiles);
+    syncPackageCounts(file.packageId, nextFiles);
+    message.success('已删除文件，主题包仍保留，文件数量已同步更新');
+  };
+  const deletePackageWithFiles = (pkg: ContentPackage) => {
+    setPackages(prev => prev.filter(item => item.id !== pkg.id));
+    setFiles(prev => prev.filter(file => file.packageId !== pkg.id));
+    if (detail?.id === pkg.id) setDetail(undefined);
+    message.success('已删除主题包及其全部文件');
+  };
   const uploadFilesToPackage = (values: any) => {
     const packageId = values.packageId as string;
     const nextFiles = buildFiles(packageId, values);
     if (!nextFiles.length) { message.warning('请至少上传一类素材文件'); return; }
-    const addCount = (type: AssetFileType) => nextFiles.filter(file => file.fileType === type).length;
-    setFiles(prev => [...nextFiles, ...prev]);
-    setPackages(prev => prev.map(pkg => pkg.id === packageId ? { ...pkg, scriptCount: pkg.scriptCount + addCount('script'), videoCount: pkg.videoCount + addCount('video'), imageCount: pkg.imageCount + addCount('image'), uploadStatus: 'completed' } : pkg));
+    const nextAllFiles = [...nextFiles, ...files];
+    setFiles(nextAllFiles);
+    syncPackageCounts(packageId, nextAllFiles);
     setUploadOpen(false); uploadForm.resetFields(); message.success('文件已上传到所选主题包，并按脚本/视频/图片自动归档');
   };
   return <>
@@ -73,15 +96,16 @@ export default function MediaResourceCenterPage(){
       onDownload={handleDownload}
       onEdit={pkg => { setEditPackage(pkg); editForm.setFieldsValue({ topicName: pkg.topicName, operatorId: pkg.operatorId }); }}
       onUpload={openUpload}
-      onDelete={pkg => { setPackages(prev => prev.filter(item => item.id !== pkg.id)); message.success('已删除主题包'); }}
+      onDelete={deletePackageWithFiles}
+      onDeleteFile={deleteFileFromPackage}
       onGenerateLead={setLeadPackage}
     />
-    <ContentPackageDetailDrawer open={Boolean(detail)} onClose={() => setDetail(undefined)} item={detail} files={detailFiles} extraActions={detail && <>
-      {canUseButton(role, 'download') && <Button icon={<DownloadOutlined />} onClick={() => message.success(`已打包下载：${detail.topicName}`)}>下载素材包</Button>}
-      {canUseButton(role, 'upload') && <Button icon={<UploadOutlined />} onClick={() => openUpload(detail)}>上传文件</Button>}
-      {canUseButton(role, 'editOwnContent') && <Button onClick={() => { setEditPackage(detail); editForm.setFieldsValue({ topicName: detail.topicName, operatorId: detail.operatorId }); }}>编辑主题</Button>}
-      {canUseButton(role, 'generateLead') && <Button type='primary' onClick={() => setLeadPackage(detail)}>基于素材生成线索</Button>}
-    </>} />
+    <ContentPackageDetailDrawer open={Boolean(detailPackage)} onClose={() => setDetail(undefined)} item={detailPackage} files={detailFiles} extraActions={detailPackage && <>
+      {canUseButton(role, 'download') && detailPackage && <Button icon={<DownloadOutlined />} onClick={() => message.success(`已打包下载：${detailPackage.topicName}`)}>下载素材包</Button>}
+      {canUseButton(role, 'upload') && detailPackage && <Button icon={<UploadOutlined />} onClick={() => openUpload(detailPackage)}>上传文件</Button>}
+      {canUseButton(role, 'editOwnContent') && detailPackage && <Button onClick={() => { setEditPackage(detailPackage); editForm.setFieldsValue({ topicName: detailPackage.topicName, operatorId: detailPackage.operatorId }); }}>编辑主题</Button>}
+      {canUseButton(role, 'generateLead') && detailPackage && <Button type='primary' onClick={() => setLeadPackage(detailPackage)}>基于素材生成线索</Button>}
+    </>} canDeleteFile={canUseButton(role, 'deleteOwnContent')} onDeleteFile={deleteFileFromPackage} />
     <Modal open={createOpen} title='新建主题包' onCancel={() => setCreateOpen(false)} onOk={() => createForm.validateFields().then(createPackage)}>
       <Form form={createForm} layout='vertical'>
         <Form.Item name='operatorId' label='运营人员' rules={[{ required: true }]}><Select options={operatorProfiles.map(op => ({ value: op.id, label: op.name }))} /></Form.Item>
