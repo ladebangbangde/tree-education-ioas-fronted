@@ -1,5 +1,5 @@
-import { Avatar, Descriptions, Divider, List, Space, Tag, Typography } from 'antd';
-import { FileTextOutlined, PictureOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { Avatar, Button, Descriptions, Divider, List, Popconfirm, Space, Tag, Typography } from 'antd';
+import { DeleteOutlined, FileTextOutlined, PictureOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { DetailDrawer } from '@/components';
 import type { AssetFile, AssetFileType, ContentPackage } from '@/types/mediaFlow';
 
@@ -13,7 +13,7 @@ const formatSize = (size: number) => size > 1024 * 1024 ? `${(size / 1024 / 1024
 
 const packageStatusText: Record<string, string> = { pending_upload: '待上传素材', uploading: '上传中', partial_completed: '部分完成', completed: '已完成', deleted: '已删除' };
 
-export default function ContentPackageDetailDrawer({ open, onClose, item, files, extraActions }: { open: boolean; onClose: () => void; item?: ContentPackage; files: AssetFile[]; extraActions?: React.ReactNode }) {
+export default function ContentPackageDetailDrawer({ open, onClose, item, files, extraActions, canDeleteFile, onDeleteFile }: { open: boolean; onClose: () => void; item?: ContentPackage; files: AssetFile[]; extraActions?: React.ReactNode; canDeleteFile?: boolean; onDeleteFile?: (file: AssetFile) => void }) {
   if (!item) return null;
   const fullPath = `${item.folderPath.operatorName} / ${item.folderPath.year} / ${String(item.folderPath.month).padStart(2, '0')} / ${String(item.folderPath.day).padStart(2, '0')} / ${item.topicName}`;
   return <DetailDrawer open={open} onClose={onClose} title='主题包详情' width={720}>
@@ -44,7 +44,7 @@ export default function ContentPackageDetailDrawer({ open, onClose, item, files,
           size='small'
           dataSource={group}
           locale={{ emptyText: '暂无文件' }}
-          renderItem={file => <List.Item actions={[<Tag color={file.uploadStatus === 'success' ? 'green' : 'red'}>{file.uploadStatus}</Tag>]}> 
+          renderItem={file => <List.Item actions={[canDeleteFile && <Popconfirm title='删除该文件后，主题包仍会保留，相关文件数量将同步更新，是否继续？' onConfirm={() => onDeleteFile?.(file)}><Button type='link' danger icon={<DeleteOutlined />}>删除文件</Button></Popconfirm>, <Tag color={file.uploadStatus === 'success' ? 'green' : 'red'}>{file.uploadStatus}</Tag>]}> 
             <List.Item.Meta
               avatar={<Avatar shape='square' src={file.thumbnailUrl} icon={meta.icon} />}
               title={<Space><Tag color={meta.color}>{meta.label}</Tag>{file.fileName}</Space>}

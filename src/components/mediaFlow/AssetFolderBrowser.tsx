@@ -29,15 +29,17 @@ interface AssetViewProps {
   permissions: ResourceActionPermissions;
   onPreview?: (file: AssetFile) => void;
   onDownload?: (file: AssetFile) => void;
+  onDeleteFile?: (file: AssetFile) => void;
 }
 
 const formatSize = (size: number) => size > 1024 * 1024 ? `${(size / 1024 / 1024).toFixed(1)}MB` : `${(size / 1024).toFixed(1)}KB`;
 const statusTag = (file: AssetFile) => <Tag color={file.uploadStatus === 'success' ? 'green' : 'red'}>{file.uploadStatus}</Tag>;
 
-function FileActions({ file, permissions, onPreview, onDownload }: AssetViewProps & { file: AssetFile }) {
+function FileActions({ file, permissions, onPreview, onDownload, onDeleteFile }: AssetViewProps & { file: AssetFile }) {
   return <Space split={<span className='asset-action-split' />}>
     {permissions.canDownload && <Button type='link' icon={<DownloadOutlined />} onClick={() => onDownload?.(file)}>下载</Button>}
     {permissions.canPreview && <Button type='link' onClick={() => onPreview?.(file)}>{file.fileType === 'script' ? '预览脚本' : file.fileType === 'image' ? '预览图片' : '播放视频'}</Button>}
+    {permissions.canDelete && <Popconfirm title='删除该文件后，主题包仍会保留，相关文件数量将同步更新，是否继续？' onConfirm={() => onDeleteFile?.(file)}><Button type='link' danger icon={<DeleteOutlined />}>删除文件</Button></Popconfirm>}
     {statusTag(file)}
   </Space>;
 }
@@ -97,7 +99,7 @@ export function AllAssetsGroupedView(props: AssetViewProps) {
   </Space>;
 }
 
-export default function AssetFolderBrowser({ packages, files, permissions, onView, onPreview, onDownload, onEdit, onDelete, onUpload, onGenerateLead }: { packages: ContentPackage[]; files: AssetFile[]; permissions: ResourceActionPermissions; onView: (pkg: ContentPackage) => void; onPreview?: (file: AssetFile) => void; onDownload?: (file: AssetFile) => void; onEdit?: (pkg: ContentPackage) => void; onDelete?: (pkg: ContentPackage) => void; onUpload?: (pkg: ContentPackage) => void; onGenerateLead?: (pkg: ContentPackage) => void }) {
+export default function AssetFolderBrowser({ packages, files, permissions, onView, onPreview, onDownload, onEdit, onDelete, onDeleteFile, onUpload, onGenerateLead }: { packages: ContentPackage[]; files: AssetFile[]; permissions: ResourceActionPermissions; onView: (pkg: ContentPackage) => void; onPreview?: (file: AssetFile) => void; onDownload?: (file: AssetFile) => void; onEdit?: (pkg: ContentPackage) => void; onDelete?: (pkg: ContentPackage) => void; onDeleteFile?: (file: AssetFile) => void; onUpload?: (pkg: ContentPackage) => void; onGenerateLead?: (pkg: ContentPackage) => void }) {
   const [selectedTreeKey, setSelectedTreeKey] = useState<string>();
   const [selectedPackageId, setSelectedPackageId] = useState<string>();
   const [activeAssetType, setActiveAssetType] = useState<AssetViewType>('all');
@@ -124,10 +126,10 @@ export default function AssetFolderBrowser({ packages, files, permissions, onVie
     <Button onClick={() => onView(current)}>查看详情</Button>
     {permissions.canEdit && <Button icon={<EditOutlined />} onClick={() => onEdit?.(current)}>编辑</Button>}
     {permissions.canUpload && <Button type='primary' icon={<UploadOutlined />} onClick={() => onUpload?.(current)}>上传文件</Button>}
-    {permissions.canDelete && <Popconfirm title='确认删除该主题包？' onConfirm={() => onDelete?.(current)}><Button danger icon={<DeleteOutlined />}>删除</Button></Popconfirm>}
+    {permissions.canDelete && <Popconfirm title='删除主题包后，将同时移除该主题包下全部脚本、视频和图片文件，是否继续？' onConfirm={() => onDelete?.(current)}><Button danger icon={<DeleteOutlined />}>删除主题包</Button></Popconfirm>}
     {permissions.canGenerateLead && <Button type='primary' onClick={() => onGenerateLead?.(current)}>基于素材生成线索</Button>}
   </Space> : null;
-  const viewProps = { files: filteredFiles, permissions, onPreview, onDownload };
+  const viewProps = { files: filteredFiles, permissions, onPreview, onDownload, onDeleteFile };
   return <Row gutter={[16, 16]}>
     <Col span={7}>
       <Card title='素材目录树' className='folder-panel'>
