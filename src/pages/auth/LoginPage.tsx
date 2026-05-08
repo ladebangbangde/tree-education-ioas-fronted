@@ -6,6 +6,7 @@ import type { Department, Role } from '@/types';
 
 const departmentByRole: Record<Role, Department> = {
   SUPER_ADMIN: '系统管理部',
+  MEDIA: '媒体部',
   OPERATOR: '运营部',
   CONSULTANT: '咨询中心'
 };

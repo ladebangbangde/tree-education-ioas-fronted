@@ -1,26 +1,29 @@
 import { matchPath } from 'react-router-dom';
 import type { Role } from '@/types';
 
-export const roles: Role[] = ['SUPER_ADMIN','OPERATOR','CONSULTANT'];
+export const roles: Role[] = ['SUPER_ADMIN','MEDIA','OPERATOR','CONSULTANT'];
 
 export const roleLabels: Record<Role, string> = {
   SUPER_ADMIN: '超管',
+  MEDIA: '媒体',
   OPERATOR: '运营',
   CONSULTANT: '顾问'
 };
 
 export const defaultRouteByRole: Record<Role, string> = {
   SUPER_ADMIN: '/dashboard',
-  OPERATOR: '/dashboard',
+  MEDIA: '/media/content',
+  OPERATOR: '/operator/leads',
   CONSULTANT: '/leads/list'
 };
 
 export const getDefaultRoute = (role: Role) => defaultRouteByRole[role];
 
-export type ButtonAction = 'view'|'edit'|'export'|'assign'|'batch'|'publish'|'preview'|'permission'|'delete'|'resetPassword'|'follow'|'convert'|'highIntent'|'new'|'file'|'log'|'config'|'stage'|'advisor'|'offline'|'more';
+export type ButtonAction = 'view'|'edit'|'export'|'assign'|'batch'|'publish'|'preview'|'permission'|'delete'|'resetPassword'|'follow'|'convert'|'highIntent'|'new'|'file'|'log'|'config'|'stage'|'advisor'|'offline'|'more'|'retry'|'generateLead'|'upload'|'download'|'bindOperator'|'restore'|'createPackage'|'editOwnContent'|'deleteOwnContent';
 
 const allRoutes = [
   '/dashboard',
+  '/media/content','/operator/leads','/media-assets','/tasks','/reports',
   '/leads/list','/leads/detail/:id','/leads/assign','/leads/follow',
   '/students/list','/students/detail/:id',
   '/applications/kanban','/applications/detail/:id','/applications/stage/:stage','/applications/materials','/applications/offers','/applications/visa',
@@ -32,8 +35,9 @@ const allRoutes = [
 
 export const rolePageMatrix: Record<Role, string[]> = {
   SUPER_ADMIN: [...allRoutes],
-  CONSULTANT: ['/dashboard','/leads/list','/leads/detail/:id','/leads/assign','/leads/follow','/students/list','/students/detail/:id','/applications/kanban','/applications/detail/:id','/applications/stage/:stage','/applications/materials','/applications/offers','/applications/visa','/cms/articles','/cms/cases','/cms/case/detail/:id','/cms/case/preview/:id','/knowledge/library','/messages/tasks'],
-  OPERATOR: ['/dashboard','/leads/list','/leads/detail/:id','/cms/articles','/cms/cases','/cms/case/detail/:id','/cms/case/preview/:id','/cms/case/edit/:id','/cms/config/country','/cms/config/school','/cms/media','/cms/site-config','/cms/:type/:mode/:id','/cms/config/:mode','/knowledge/library','/messages/tasks','/reports/overview','/reports/leads']
+  MEDIA: ['/media/content','/media-assets','/tasks','/reports'],
+  OPERATOR: ['/operator/leads','/media-assets','/tasks','/reports'],
+  CONSULTANT: ['/dashboard','/leads/list','/leads/detail/:id','/leads/assign','/leads/follow','/students/list','/students/detail/:id','/applications/kanban','/applications/detail/:id','/applications/stage/:stage','/applications/materials','/applications/offers','/applications/visa','/knowledge/library','/messages/tasks']
 };
 
 export const routePermissionMap = allRoutes.reduce((acc, route) => {
@@ -41,11 +45,12 @@ export const routePermissionMap = allRoutes.reduce((acc, route) => {
   return acc;
 }, {} as Record<string, Role[]>);
 
-const allActions: ButtonAction[] = ['view','edit','export','assign','batch','publish','preview','permission','delete','resetPassword','follow','convert','highIntent','new','file','log','config','stage','advisor','offline','more'];
+const allActions: ButtonAction[] = ['view','edit','export','assign','batch','publish','preview','permission','delete','resetPassword','follow','convert','highIntent','new','file','log','config','stage','advisor','offline','more','retry','generateLead','upload','download','bindOperator','restore','createPackage','editOwnContent','deleteOwnContent'];
 export const roleButtonMatrix: Record<Role, ButtonAction[]> = {
   SUPER_ADMIN: allActions,
+  MEDIA: ['view','new','createPackage','upload','download','preview','edit','editOwnContent','delete','deleteOwnContent','bindOperator','retry','restore','file'],
   CONSULTANT: ['view','edit','assign','follow','file','log','stage','advisor','more'],
-  OPERATOR: ['view','edit','export','publish','preview','new','file','log','config','offline','more']
+  OPERATOR: ['view','download','preview','file','log','generateLead','more']
 };
 
 export const oldRoleMigrationMap = {
@@ -53,6 +58,7 @@ export const oldRoleMigrationMap = {
   APPLICANT_TEACHER: 'CONSULTANT',
   COPYWRITER: 'CONSULTANT',
   AFTER_SERVICE: 'CONSULTANT',
+  MEDIA: 'MEDIA',
   OPERATOR: 'OPERATOR',
   SUPER_ADMIN: 'SUPER_ADMIN'
 } as const;
