@@ -11,6 +11,8 @@ const fileTypeMeta: Record<AssetFileType, { label: string; icon: React.ReactNode
 
 const formatSize = (size: number) => size > 1024 * 1024 ? `${(size / 1024 / 1024).toFixed(1)}MB` : `${(size / 1024).toFixed(1)}KB`;
 
+const packageStatusText: Record<string, string> = { pending_upload: '待上传素材', uploading: '上传中', partial_completed: '部分完成', completed: '已完成', deleted: '已删除' };
+
 export default function ContentPackageDetailDrawer({ open, onClose, item, files, extraActions }: { open: boolean; onClose: () => void; item?: ContentPackage; files: AssetFile[]; extraActions?: React.ReactNode }) {
   if (!item) return null;
   const fullPath = `${item.folderPath.operatorName} / ${item.folderPath.year} / ${String(item.folderPath.month).padStart(2, '0')} / ${String(item.folderPath.day).padStart(2, '0')} / ${item.topicName}`;
@@ -27,7 +29,7 @@ export default function ContentPackageDetailDrawer({ open, onClose, item, files,
       { key: 'operatorName', label: '绑定运营', children: item.operatorName },
       { key: 'createdBy', label: '上传媒体', children: item.createdBy },
       { key: 'createdAt', label: '创建时间', children: item.createdAt },
-      { key: 'status', label: '入库状态', children: item.uploadStatus },
+      { key: 'status', label: '主题包状态', children: packageStatusText[item.uploadStatus] || item.uploadStatus },
       { key: 'scriptCount', label: '脚本文案', children: `${item.scriptCount} 个` },
       { key: 'videoCount', label: '视频文件', children: `${item.videoCount} 个` },
       { key: 'imageCount', label: '图片文件', children: `${item.imageCount} 个` }

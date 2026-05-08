@@ -17,7 +17,7 @@ export const contentPackages: ContentPackage[] = [
     scriptCount: 2,
     videoCount: 2,
     imageCount: 6,
-    uploadStatus: 'success',
+    uploadStatus: 'completed',
     createdBy: '媒体账号-王悦',
     createdAt: '2026-05-06 10:12'
   },
@@ -31,7 +31,7 @@ export const contentPackages: ContentPackage[] = [
     scriptCount: 1,
     videoCount: 1,
     imageCount: 4,
-    uploadStatus: 'partial_success',
+    uploadStatus: 'partial_completed',
     createdBy: '媒体账号-王悦',
     createdAt: '2026-05-07 15:30'
   },
@@ -45,7 +45,7 @@ export const contentPackages: ContentPackage[] = [
     scriptCount: 1,
     videoCount: 0,
     imageCount: 3,
-    uploadStatus: 'pending_supplement',
+    uploadStatus: 'pending_upload',
     createdBy: '媒体账号-王悦',
     createdAt: '2026-05-08 09:05'
   }

@@ -1,6 +1,6 @@
 import { Button, Card, Col, Empty, List, Popconfirm, Row, Space, Tag, Tree, Typography } from 'antd';
 import type { DataNode } from 'antd/es/tree';
-import { DeleteOutlined, DownloadOutlined, EditOutlined, FileImageOutlined, FileTextOutlined, FolderFilled, PlayCircleOutlined } from '@ant-design/icons';
+import { DeleteOutlined, DownloadOutlined, EditOutlined, FileImageOutlined, FileTextOutlined, FolderFilled, PlayCircleOutlined, UploadOutlined } from '@ant-design/icons';
 import { useMemo, useState } from 'react';
 import type { AssetFile, AssetFileType, ContentPackage } from '@/types/mediaFlow';
 
@@ -13,9 +13,10 @@ export interface ResourceActionPermissions {
   canEdit: boolean;
   canDelete: boolean;
   canGenerateLead: boolean;
+  canUpload: boolean;
 }
 
-export default function AssetFolderBrowser({ packages, files, permissions, onView, onPreview, onDownload, onEdit, onDelete, onGenerateLead }: { packages: ContentPackage[]; files: AssetFile[]; permissions: ResourceActionPermissions; onView: (pkg: ContentPackage) => void; onPreview?: (file: AssetFile) => void; onDownload?: (file: AssetFile) => void; onEdit?: (pkg: ContentPackage) => void; onDelete?: (pkg: ContentPackage) => void; onGenerateLead?: (pkg: ContentPackage) => void }) {
+export default function AssetFolderBrowser({ packages, files, permissions, onView, onPreview, onDownload, onEdit, onDelete, onUpload, onGenerateLead }: { packages: ContentPackage[]; files: AssetFile[]; permissions: ResourceActionPermissions; onView: (pkg: ContentPackage) => void; onPreview?: (file: AssetFile) => void; onDownload?: (file: AssetFile) => void; onEdit?: (pkg: ContentPackage) => void; onDelete?: (pkg: ContentPackage) => void; onUpload?: (pkg: ContentPackage) => void; onGenerateLead?: (pkg: ContentPackage) => void }) {
   const [selectedPackageId, setSelectedPackageId] = useState(packages[0]?.id);
   const treeData = useMemo<DataNode[]>(() => {
     const operatorMap = new Map<string, ContentPackage[]>();
@@ -37,6 +38,7 @@ export default function AssetFolderBrowser({ packages, files, permissions, onVie
   const packageActions = current ? <Space>
     <Button onClick={() => onView(current)}>查看详情</Button>
     {permissions.canEdit && <Button icon={<EditOutlined />} onClick={() => onEdit?.(current)}>编辑</Button>}
+    {permissions.canUpload && <Button icon={<UploadOutlined />} onClick={() => onUpload?.(current)}>上传文件</Button>}
     {permissions.canDelete && <Popconfirm title='确认删除该主题包？' onConfirm={() => onDelete?.(current)}><Button danger icon={<DeleteOutlined />}>删除</Button></Popconfirm>}
     {permissions.canGenerateLead && <Button type='primary' onClick={() => onGenerateLead?.(current)}>基于素材生成线索</Button>}
   </Space> : null;

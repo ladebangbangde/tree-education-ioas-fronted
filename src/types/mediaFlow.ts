@@ -1,5 +1,6 @@
 export type AssetFileType = 'script' | 'video' | 'image';
 export type UploadStatus = 'uploading' | 'success' | 'failed' | 'partial_success' | 'pending_supplement';
+export type ContentPackageStatus = 'pending_upload' | 'uploading' | 'partial_completed' | 'completed' | 'deleted';
 export type TaskType = 'media_upload' | 'operator_lead_generate';
 export type TaskRoleType = 'media' | 'operator';
 export type MediaTaskStatus = 'uploading' | 'success' | 'failed' | 'partial_success' | 'pending_supplement';
@@ -27,7 +28,7 @@ export interface ContentPackage {
   scriptCount: number;
   videoCount: number;
   imageCount: number;
-  uploadStatus: UploadStatus;
+  uploadStatus: ContentPackageStatus;
   createdBy: string;
   createdAt: string;
 }
