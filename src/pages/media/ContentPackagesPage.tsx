@@ -65,7 +65,7 @@ export default function ContentPackagesPage(){
   </Space> }];
   const recycleColumns = [...baseColumns, { title: '操作', render: (_: unknown, r: ContentPackage) => <Space><Button type='link' onClick={() => setDetail(r)}>详情</Button>{canUseButton(role, 'restore') && <Button type='link' icon={<RollbackOutlined />} onClick={() => { setRecycle(prev => prev.filter(item => item.id !== r.id)); setPackages(prev => [{ ...r, uploadStatus: 'pending_upload' }, ...prev]); }}>恢复</Button>}</Space> }];
   return <>
-    <PageHeader title='内容管理｜我的上传工作台' extra={<Space>{canUseButton(role, 'createPackage') && <Button type='primary' icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>新建主题包</Button>}{canUseButton(role, 'upload') && <Button icon={<UploadOutlined />} onClick={() => openUpload()}>上传文件</Button>}</Space>} />
+    <PageHeader title='内容管理｜我的上传工作台' extra={<Space className='resource-toolbar' size={12}>{canUseButton(role, 'createPackage') && <Button type='primary' icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>新建主题包</Button>}{canUseButton(role, 'upload') && <Button icon={<UploadOutlined />} onClick={() => openUpload()}>上传文件</Button>}</Space>} />
     <Row gutter={[16,16]} className='mb12'>
       <Col span={8}><Card><b>先建主题包</b><p>新建主题包只创建目录容器，填写运营人员和主题名称，路径由系统自动拼接。</p></Card></Col>
       <Col span={8}><Card><b>再上传文件</b><p>上传文件必须选择已有主题包，脚本、视频、图片会自动归入对应子目录。</p></Card></Col>
