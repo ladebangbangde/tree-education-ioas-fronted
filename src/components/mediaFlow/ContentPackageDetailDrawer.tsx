@@ -44,7 +44,7 @@ export default function ContentPackageDetailDrawer({ open, onClose, item, files,
           size='small'
           dataSource={group}
           locale={{ emptyText: '暂无文件' }}
-          renderItem={file => <List.Item actions={[canDeleteFile && <Popconfirm title='删除该文件后，主题包仍会保留，相关文件数量将同步更新，是否继续？' onConfirm={() => onDeleteFile?.(file)}><Button type='link' danger icon={<DeleteOutlined />}>删除文件</Button></Popconfirm>, <Tag color={file.uploadStatus === 'success' ? 'green' : 'red'}>{file.uploadStatus}</Tag>]}> 
+          renderItem={file => <List.Item actions={[canDeleteFile && <Popconfirm title='删除后文件将移入回收站，并在 7 天后自动永久删除。7 天内可恢复。' onConfirm={() => onDeleteFile?.(file)}><Button type='link' danger icon={<DeleteOutlined />}>删除文件</Button></Popconfirm>, <Tag color={file.uploadStatus === 'success' ? 'green' : 'red'}>{file.uploadStatus}</Tag>]}> 
             <List.Item.Meta
               avatar={<Avatar shape='square' src={file.thumbnailUrl} icon={meta.icon} />}
               title={<Space><Tag color={meta.color}>{meta.label}</Tag>{file.fileName}</Space>}
