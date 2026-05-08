@@ -4,7 +4,7 @@ import type { AppMenuItem } from '@/types';
 export const menuConfig: AppMenuItem[] = [
   { key:'media-content',label:'内容管理',path:'/media/content',icon:<ReadOutlined/>,roles:['MEDIA'] },
   { key:'operator-leads',label:'线索中心',path:'/operator/leads',icon:<TeamOutlined/>,roles:['OPERATOR'] },
-  { key:'operator-assets',label:'媒体资源中心',path:'/operator/media-assets',icon:<FolderOpenOutlined/>,roles:['OPERATOR'] },
+  { key:'media-assets',label:'媒体资源中心',path:'/media-assets',icon:<FolderOpenOutlined/>,roles:['MEDIA','OPERATOR'] },
   { key:'role-tasks',label:'任务中心',path:'/tasks',icon:<FileTextOutlined/>,roles:['MEDIA','OPERATOR'] },
   { key:'role-reports',label:'数据报表',path:'/reports',icon:<BarChartOutlined/>,roles:['MEDIA','OPERATOR'] },
 

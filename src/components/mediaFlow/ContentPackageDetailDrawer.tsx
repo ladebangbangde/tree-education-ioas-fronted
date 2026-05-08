@@ -11,7 +11,7 @@ const fileTypeMeta: Record<AssetFileType, { label: string; icon: React.ReactNode
 
 const formatSize = (size: number) => size > 1024 * 1024 ? `${(size / 1024 / 1024).toFixed(1)}MB` : `${(size / 1024).toFixed(1)}KB`;
 
-export default function ContentPackageDetailDrawer({ open, onClose, item, files }: { open: boolean; onClose: () => void; item?: ContentPackage; files: AssetFile[] }) {
+export default function ContentPackageDetailDrawer({ open, onClose, item, files, extraActions }: { open: boolean; onClose: () => void; item?: ContentPackage; files: AssetFile[]; extraActions?: React.ReactNode }) {
   if (!item) return null;
   const fullPath = `${item.folderPath.operatorName} / ${item.folderPath.year} / ${String(item.folderPath.month).padStart(2, '0')} / ${String(item.folderPath.day).padStart(2, '0')} / ${item.topicName}`;
   return <DetailDrawer open={open} onClose={onClose} title='主题包详情' width={720}>
@@ -22,6 +22,7 @@ export default function ContentPackageDetailDrawer({ open, onClose, item, files 
         <Typography.Text type='secondary'>{fullPath}</Typography.Text>
       </div>
     </Space>
+    {extraActions && <Space className='mt12'>{extraActions}</Space>}
     <Descriptions column={2} bordered size='small' className='mt12' items={[
       { key: 'operatorName', label: '绑定运营', children: item.operatorName },
       { key: 'createdBy', label: '上传媒体', children: item.createdBy },
