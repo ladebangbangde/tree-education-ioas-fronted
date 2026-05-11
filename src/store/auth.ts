@@ -55,10 +55,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   login: (name, _pwd, role = 'OPERATOR', profile = {}) => {
     const department = profile.department || defaultDepartment(role);
+    const token = `mock-token-${role.toLowerCase()}`;
+    localStorage.setItem('token', token);
     localStorage.setItem('role', role);
     localStorage.setItem('userName', name);
     localStorage.setItem('department', department);
-    set({ role, userName: name, department, isLogin: Boolean(get().token), token: get().token });
+    localStorage.setItem('userId', `mock-${role}`);
+    set({ role, userName: name, department, isLogin: true, token, id: `mock-${role}` });
   },
   logout: () => {
     localStorage.removeItem('token'); localStorage.removeItem('role'); localStorage.removeItem('userName'); localStorage.removeItem('department'); localStorage.removeItem('userId');

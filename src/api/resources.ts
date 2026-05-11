@@ -1,12 +1,6 @@
-import client, { normalizePage, unwrapResponse } from './client';
+import { mockResources } from '@/mock/mediaFlowApi';
 
 export const resourcesApi = {
-  async tree() {
-    const res = await client.get('/media/resources/tree');
-    return unwrapResponse<any[]>(res.data);
-  },
-  async packages(params?: { keyword?: string; operatorId?: string; pageNum?: number; pageSize?: number }) {
-    const res = await client.get('/media/resources/packages', { params });
-    return normalizePage<any>(res.data);
-  }
+  tree: () => mockResources.tree(),
+  packages: (params?: { keyword?: string; operatorId?: string; pageNum?: number; pageSize?: number }) => mockResources.packages(params)
 };
