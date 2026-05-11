@@ -1,20 +1,14 @@
-import { Button, Card, Checkbox, Form, Input, Select, Typography } from 'antd';
+import { Button, Card, Checkbox, Form, Input, Typography, message } from 'antd';
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getDefaultRoute, roleLabels, roles } from '@/constants/permissions';
+import { getDefaultRoute } from '@/constants/permissions';
 import { useAuthStore } from '@/store/auth';
-import type { Department, Role } from '@/types';
-
-const departmentByRole: Record<Role, Department> = {
-  SUPER_ADMIN: '系统管理部',
-  MEDIA: '媒体部',
-  OPERATOR: '运营部',
-  CONSULTANT: '咨询中心'
-};
 
 export default function LoginPage(){
   const nav = useNavigate();
   const loc = useLocation();
-  const login = useAuthStore(s=>s.login);
+  const loginByApi = useAuthStore(s=>s.loginByApi);
+  const [loading, setLoading] = useState(false);
 
   return <div className='login'>
     <div className='login-left'><div><h1>留学中介运营中台</h1><p>覆盖线索、学生、申请、内容、报表全链路</p></div></div>
@@ -23,18 +17,24 @@ export default function LoginPage(){
         <Typography.Title level={3}>欢迎登录</Typography.Title>
         <Form
           layout='vertical'
-          initialValues={{username:'运营',role:'OPERATOR',remember:true}}
-          onFinish={(v)=>{
-            const role = v.role as Role;
-            login(v.username, v.password, role, { department: departmentByRole[role] });
-            nav((loc.state as any)?.from || getDefaultRoute(role));
+          initialValues={{remember:true}}
+          onFinish={async (v)=>{
+            setLoading(true);
+            try {
+              const role = await loginByApi(v.username, v.password);
+              message.success('登录成功');
+              nav((loc.state as any)?.from || getDefaultRoute(role), { replace: true });
+            } catch (error: any) {
+              message.error(error?.response?.data?.message || error?.response?.data?.msg || error?.message || '登录失败，请检查账号密码');
+            } finally {
+              setLoading(false);
+            }
           }}
         >
-          <Form.Item label='账号' name='username' rules={[{required:true,message:'请输入账号'}]}><Input placeholder='例如：林娜 / 陈思 / Amy顾问'/></Form.Item>
+          <Form.Item label='账号' name='username' rules={[{required:true,message:'请输入账号'}]}><Input placeholder='请输入后端账号'/></Form.Item>
           <Form.Item label='密码' name='password' rules={[{required:true,message:'请输入密码'}]}><Input.Password/></Form.Item>
-          <Form.Item label='后台身份' name='role' rules={[{required:true,message:'请选择身份'}]}><Select options={roles.map(value=>({value,label:`${roleLabels[value]}（${value}）`}))}/></Form.Item>
           <Form.Item name='remember' valuePropName='checked'><Checkbox>记住我</Checkbox></Form.Item>
-          <Button type='primary' htmlType='submit' block>登录系统</Button>
+          <Button type='primary' htmlType='submit' block loading={loading}>登录系统</Button>
         </Form>
       </Card>
     </div>

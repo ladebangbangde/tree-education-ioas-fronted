@@ -1,130 +1,168 @@
 import { Button, Card, Col, Form, Input, Modal, Popconfirm, Row, Select, Space, Tabs, Tag, Upload, message } from 'antd';
 import { InboxOutlined, PlusOutlined, RollbackOutlined, UploadOutlined } from '@ant-design/icons';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { UploadFile } from 'antd';
+import { assetsApi } from '@/api/assets';
+import { contentPackagesApi, type ContentPackageTab } from '@/api/contentPackages';
+import { operatorsApi } from '@/api/operators';
 import { DataTable, PageHeader } from '@/components';
 import ContentPackageDetailDrawer from '@/components/mediaFlow/ContentPackageDetailDrawer';
 import { canUseButton } from '@/constants/permissions';
-import { assetFiles, contentPackages, operatorProfiles } from '@/mock/mediaFlow';
 import { useAuthStore } from '@/store/auth';
-import type { AssetFile, AssetFileType, ContentPackage } from '@/types/mediaFlow';
+import type { AssetFile, ContentPackage, OperatorProfile } from '@/types/mediaFlow';
+import { adaptAssetFile, adaptContentPackage, adaptOperator } from '@/utils/adapters/mediaFlow';
 
 const statusColor: Record<string, string> = { pending_upload: 'default', uploading: 'processing', partial_completed: 'gold', completed: 'green', deleted: 'red' };
 const statusText: Record<string, string> = { pending_upload: '待上传素材', uploading: '上传中', partial_completed: '部分完成', completed: '已完成', deleted: '已删除' };
-const draftPackages: ContentPackage[] = [{ ...contentPackages[2], id: 'DRAFT20260508001', topicName: '香港传媒申请故事草稿', uploadStatus: 'pending_upload', createdAt: '2026-05-08 12:00' }];
-const recyclePackages: ContentPackage[] = [{ ...contentPackages[1], id: 'RECYCLE20260507001', topicName: '已删除-澳洲护理专业就业解读素材', uploadStatus: 'deleted' }];
+const tabMap: Record<string, ContentPackageTab> = { mine: 'mine', drafts: 'draft', records: 'record', recycle: 'recycle' };
 
-const fileMeta: Record<AssetFileType, { mimeType: string; defaultName: string }> = {
-  script: { mimeType: 'application/octet-stream', defaultName: '新脚本文案.docx' },
-  video: { mimeType: 'video/mp4', defaultName: '新视频素材.mp4' },
-  image: { mimeType: 'image/jpeg', defaultName: '新图片素材.jpg' }
+const appendUploadFiles = (formData: FormData, field: 'scripts' | 'videos' | 'images', files?: UploadFile[]) => {
+  (files || []).forEach(file => {
+    const raw = file.originFileObj as File | undefined;
+    if (raw) formData.append(field, raw);
+  });
 };
 
 export default function ContentPackagesPage(){
   const role = useAuthStore(s => s.role);
-  const [packages, setPackages] = useState(contentPackages);
-  const [files, setFiles] = useState<AssetFile[]>(assetFiles);
-  const [recycle, setRecycle] = useState(recyclePackages);
+  const [activeTab, setActiveTab] = useState('mine');
+  const [packages, setPackages] = useState<ContentPackage[]>([]);
+  const [files, setFiles] = useState<AssetFile[]>([]);
+  const [recycleFiles, setRecycleFiles] = useState<AssetFile[]>([]);
+  const [operators, setOperators] = useState<OperatorProfile[]>([]);
   const [detail, setDetail] = useState<ContentPackage>();
   const [editPackage, setEditPackage] = useState<ContentPackage>();
   const [createOpen, setCreateOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [submitLoading, setSubmitLoading] = useState(false);
   const [createForm] = Form.useForm();
   const [uploadForm] = Form.useForm();
   const [editForm] = Form.useForm();
-  const detailPackage = useMemo(() => packages.find(pkg => pkg.id === detail?.id) || recycle.find(pkg => pkg.id === detail?.id), [detail, packages, recycle]);
+
+  const loadOperators = useCallback(async () => {
+    const data = await operatorsApi.options();
+    setOperators((data || []).map(adaptOperator));
+  }, []);
+
+  const loadList = useCallback(async (tab = activeTab) => {
+    setLoading(true);
+    try {
+      if (tab === 'recycle') {
+        const page = await assetsApi.recycleBin({ pageNum: 1, pageSize: 200 });
+        setRecycleFiles(page.records.map(adaptAssetFile));
+        return;
+      }
+      const page = await contentPackagesApi.list({ tab: tabMap[tab], pageNum: 1, pageSize: 200 });
+      const nextPackages = page.records.map(adaptContentPackage);
+      setPackages(nextPackages);
+      const assetsPage = await assetsApi.list({ fileType: 'all', pageNum: 1, pageSize: 1000 });
+      setFiles(assetsPage.records.map(adaptAssetFile));
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab]);
+
+  useEffect(() => { loadOperators().catch(() => undefined); }, [loadOperators]);
+  useEffect(() => { loadList(activeTab).catch(() => undefined); }, [activeTab, loadList]);
+
+  const detailPackage = useMemo(() => packages.find(pkg => pkg.id === detail?.id) || detail, [detail, packages]);
   const currentFiles = useMemo(() => files.filter(file => file.packageId === detailPackage?.id), [detailPackage, files]);
   const openUpload = (pkg?: ContentPackage) => { uploadForm.resetFields(); if (pkg) uploadForm.setFieldsValue({ packageId: pkg.id }); setUploadOpen(true); };
-  const createPackage = (values: { operatorId: string; topicName: string }) => {
-    const op = operatorProfiles.find(item => item.id === values.operatorId)!;
-    const next: ContentPackage = { id: `PKG${Date.now()}`, topicName: values.topicName, operatorId: op.id, operatorName: op.name, folderPath: { operatorId: op.id, operatorName: op.name, year: 2026, month: 5, day: 8, topicName: values.topicName }, coverUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=480&q=80', scriptCount: 0, videoCount: 0, imageCount: 0, uploadStatus: 'pending_upload', createdBy: '媒体账号-王悦', createdAt: '2026-05-08 10:00' };
-    setPackages(prev => [next, ...prev]); setCreateOpen(false); createForm.resetFields(); message.success(`已创建主题包：${next.folderPath.operatorName} / 2026 / 05 / 08 / ${next.topicName}`);
+
+  const openDetail = async (pkg: ContentPackage) => {
+    setDetail(pkg);
+    try {
+      const dto = await contentPackagesApi.detail(pkg.id);
+      setDetail(adaptContentPackage(dto));
+      const page = await assetsApi.list({ packageId: pkg.id, fileType: 'all', pageNum: 1, pageSize: 500 });
+      setFiles(prev => [...prev.filter(file => file.packageId !== pkg.id), ...page.records.map(adaptAssetFile)]);
+    } catch {
+      message.error('主题包详情加载失败');
+      setDetail(undefined);
+    }
   };
-  const buildFiles = (packageId: string, values: any) => (['script', 'video', 'image'] as AssetFileType[]).flatMap(type => (values[type]?.fileList || []).map((file: any, index: number) => ({ id: `AST${Date.now()}${type}${index}`, packageId, fileName: file.name || fileMeta[type].defaultName, fileType: type, mimeType: file.type || fileMeta[type].mimeType, fileSize: file.size || 0, uploadStatus: 'success' as const, sortOrder: files.filter(item => item.packageId === packageId && item.fileType === type).length + index + 1 })));
-  const syncPackageCounts = (packageId: string, nextFiles: AssetFile[]) => {
-    const packageFiles = nextFiles.filter(file => file.packageId === packageId);
-    setPackages(prev => prev.map(pkg => pkg.id === packageId ? {
-      ...pkg,
-      scriptCount: packageFiles.filter(file => file.fileType === 'script').length,
-      videoCount: packageFiles.filter(file => file.fileType === 'video').length,
-      imageCount: packageFiles.filter(file => file.fileType === 'image').length,
-      uploadStatus: packageFiles.length ? 'completed' : 'pending_upload'
-    } : pkg));
+
+  const createPackage = async (values: { operatorId: string; topicName: string }) => {
+    setSubmitLoading(true);
+    try {
+      await contentPackagesApi.create(values);
+      message.success('主题包已创建');
+      setCreateOpen(false); createForm.resetFields(); loadList(activeTab);
+    } finally { setSubmitLoading(false); }
   };
-  const deleteFileFromPackage = (file: AssetFile) => {
-    const nextFiles = files.filter(item => item.id !== file.id);
-    setFiles(nextFiles);
-    syncPackageCounts(file.packageId, nextFiles);
-    message.success('已删除文件，主题包仍保留，文件数量已同步更新');
+
+  const updatePackage = async (values: { operatorId: string; topicName: string }) => {
+    if (!editPackage) return;
+    setSubmitLoading(true);
+    try {
+      await contentPackagesApi.update(editPackage.id, values);
+      message.success('主题信息已更新');
+      setEditPackage(undefined); loadList(activeTab);
+    } finally { setSubmitLoading(false); }
   };
-  const deletePackageWithFiles = (pkg: ContentPackage) => {
-    setPackages(prev => prev.filter(item => item.id !== pkg.id));
-    setFiles(prev => prev.filter(file => file.packageId !== pkg.id));
-    setRecycle(prev => [{ ...pkg, scriptCount: 0, videoCount: 0, imageCount: 0, uploadStatus: 'deleted' }, ...prev]);
-    if (detail?.id === pkg.id) setDetail(undefined);
+
+  const uploadFilesToPackage = async (values: any) => {
+    const formData = new FormData();
+    appendUploadFiles(formData, 'scripts', values.script?.fileList);
+    appendUploadFiles(formData, 'videos', values.video?.fileList);
+    appendUploadFiles(formData, 'images', values.image?.fileList);
+    if ([...formData.keys()].length === 0) { message.warning('请至少上传一类素材文件'); return; }
+    setSubmitLoading(true);
+    try {
+      await contentPackagesApi.uploadFiles(values.packageId, formData);
+      message.success('文件已上传');
+      setUploadOpen(false); uploadForm.resetFields(); await loadList(activeTab);
+      const currentDetail = detailPackage;
+      if (currentDetail && currentDetail.id === values.packageId) openDetail(currentDetail);
+    } finally { setSubmitLoading(false); }
+  };
+
+  const deleteFileFromPackage = async (file: AssetFile) => {
+    await assetsApi.remove(file.id);
+    message.success('文件已删除');
+    await loadList(activeTab);
+    if (detailPackage) openDetail(detailPackage);
+  };
+  const deletePackageWithFiles = async (pkg: ContentPackage) => {
+    await contentPackagesApi.remove(pkg.id);
     message.success('已删除主题包及其全部文件');
+    if (detail?.id === pkg.id) setDetail(undefined);
+    loadList(activeTab);
   };
-  const uploadFilesToPackage = (values: any) => {
-    const packageId = values.packageId as string;
-    const nextFiles = buildFiles(packageId, values);
-    if (!nextFiles.length) { message.warning('请至少上传一类素材文件'); return; }
-    const nextAllFiles = [...nextFiles, ...files];
-    setFiles(nextAllFiles);
-    syncPackageCounts(packageId, nextAllFiles);
-    setUploadOpen(false); uploadForm.resetFields(); message.success('文件已上传到所选主题包，并按脚本/视频/图片自动归档');
-  };
+
   const baseColumns = [
-    { title: '封面', dataIndex: 'coverUrl', width: 110, render: (url: string) => <img src={url} className='cover-thumb' /> },
+    { title: '封面', dataIndex: 'coverUrl', width: 110, render: (url: string) => url ? <img src={url} className='cover-thumb' /> : '-' },
     { title: '主题名称', dataIndex: 'topicName' },
     { title: '绑定运营', dataIndex: 'operatorName' },
     { title: '自动路径', render: (_: unknown, r: ContentPackage) => `${r.folderPath.operatorName} / ${r.folderPath.year} / ${String(r.folderPath.month).padStart(2, '0')} / ${String(r.folderPath.day).padStart(2, '0')} / ${r.topicName}` },
     { title: '脚本/视频/图片', render: (_: unknown, r: ContentPackage) => `${r.scriptCount}/${r.videoCount}/${r.imageCount}` },
-    { title: '状态', dataIndex: 'uploadStatus', render: (v: string) => <Tag color={statusColor[v]}>{statusText[v]}</Tag> },
+    { title: '状态', dataIndex: 'uploadStatus', render: (v: string) => <Tag color={statusColor[v]}>{statusText[v] || v}</Tag> },
     { title: '创建时间', dataIndex: 'createdAt' }
   ];
   const activeColumns = [...baseColumns, { title: '操作', fixed: 'right' as const, render: (_: unknown, r: ContentPackage) => <Space>
-    <Button type='link' onClick={() => setDetail(r)}>详情</Button>
+    <Button type='link' onClick={() => openDetail(r)}>详情</Button>
     {canUseButton(role, 'editOwnContent') && <Button type='link' onClick={() => { setEditPackage(r); editForm.setFieldsValue({ topicName: r.topicName, operatorId: r.operatorId }); }}>编辑主题信息</Button>}
     {canUseButton(role, 'upload') && <Button type='link' onClick={() => openUpload(r)}>上传文件</Button>}
-    {canUseButton(role, 'deleteOwnContent') && <Popconfirm title='删除主题包后，将同时移除该主题包下全部脚本、视频和图片文件，是否继续？' onConfirm={() => deletePackageWithFiles(r)}><Button type='link' danger>删除主题包</Button></Popconfirm>}
+    {canUseButton(role, 'deleteOwnContent') && <Popconfirm title='删除主题包后，将同时移除该主题包下全部文件，是否继续？' onConfirm={() => deletePackageWithFiles(r)}><Button type='link' danger>删除主题包</Button></Popconfirm>}
   </Space> }];
-  const recycleColumns = [...baseColumns, { title: '操作', render: (_: unknown, r: ContentPackage) => <Space><Button type='link' onClick={() => setDetail(r)}>详情</Button>{canUseButton(role, 'restore') && <Button type='link' icon={<RollbackOutlined />} onClick={() => { setRecycle(prev => prev.filter(item => item.id !== r.id)); setPackages(prev => [{ ...r, uploadStatus: 'pending_upload' }, ...prev]); }}>恢复</Button>}</Space> }];
+  const recycleColumns = [
+    { title: '文件名', dataIndex: 'fileName' }, { title: '文件类型', dataIndex: 'fileType' }, { title: '大小', dataIndex: 'fileSize' }, { title: '所属主题包', dataIndex: 'packageId' },
+    { title: '操作', render: (_: unknown, r: AssetFile) => <Space>{canUseButton(role, 'restore') && <Button type='link' icon={<RollbackOutlined />} onClick={async () => { await assetsApi.restore(r.id); message.success('文件已恢复'); loadList('recycle'); }}>恢复</Button>}<Popconfirm title='永久删除后不可恢复，是否继续？' onConfirm={async () => { await assetsApi.purge(r.id); message.success('已永久删除'); loadList('recycle'); }}><Button type='link' danger>永久删除</Button></Popconfirm></Space> }
+  ];
+
   return <>
     <PageHeader title='内容管理｜我的上传工作台' extra={<Space className='resource-toolbar' size={12}>{canUseButton(role, 'createPackage') && <Button type='primary' icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>新建主题包</Button>}{canUseButton(role, 'upload') && <Button icon={<UploadOutlined />} onClick={() => openUpload()}>上传文件</Button>}</Space>} />
-    <Row gutter={[16,16]} className='mb12'>
-      <Col span={8}><Card><b>先建主题包</b><p>新建主题包只创建目录容器，填写运营人员和主题名称，路径由系统自动拼接。</p></Card></Col>
-      <Col span={8}><Card><b>再上传文件</b><p>上传文件必须选择已有主题包，脚本、视频、图片会自动归入对应子目录。</p></Card></Col>
-      <Col span={8}><Card><b>素材流转</b><p>主题包入库后进入公共媒体资源中心，运营只能消费素材生成线索。</p></Card></Col>
-    </Row>
-    <Tabs items={[
-      { key: 'mine', label: `我的上传(${packages.length})`, children: <DataTable rowKey='id' columns={activeColumns} dataSource={packages} /> },
-      { key: 'drafts', label: `草稿箱(${draftPackages.length})`, children: <DataTable rowKey='id' columns={activeColumns} dataSource={draftPackages} /> },
-      { key: 'records', label: `上传记录(${packages.length + draftPackages.length})`, children: <DataTable rowKey='id' columns={baseColumns} dataSource={[...packages, ...draftPackages]} /> },
-      { key: 'recycle', label: `回收站(${recycle.length})`, children: <DataTable rowKey='id' columns={recycleColumns} dataSource={recycle} /> }
+    <Row gutter={[16,16]} className='mb12'><Col span={8}><Card><b>先建主题包</b><p>路径由系统自动拼接。</p></Card></Col><Col span={8}><Card><b>再上传文件</b><p>脚本、视频、图片归入对应子目录。</p></Card></Col><Col span={8}><Card><b>素材流转</b><p>主题包入库后进入公共媒体资源中心。</p></Card></Col></Row>
+    <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
+      { key: 'mine', label: '我的上传', children: <DataTable loading={loading} rowKey='id' columns={activeColumns} dataSource={packages} /> },
+      { key: 'drafts', label: '草稿箱', children: <DataTable loading={loading} rowKey='id' columns={activeColumns} dataSource={packages} /> },
+      { key: 'records', label: '上传记录', children: <DataTable loading={loading} rowKey='id' columns={baseColumns} dataSource={packages} /> },
+      { key: 'recycle', label: '回收站', children: <DataTable loading={loading} rowKey='id' columns={recycleColumns} dataSource={recycleFiles} /> }
     ]} />
     <ContentPackageDetailDrawer open={Boolean(detailPackage)} onClose={() => setDetail(undefined)} item={detailPackage} files={currentFiles} extraActions={detailPackage && canUseButton(role, 'upload') && <Button icon={<UploadOutlined />} onClick={() => openUpload(detailPackage)}>上传文件</Button>} canDeleteFile={canUseButton(role, 'deleteOwnContent')} onDeleteFile={deleteFileFromPackage} />
-    <Modal open={createOpen} title='新建主题包' onCancel={() => setCreateOpen(false)} onOk={() => createForm.validateFields().then(createPackage)}>
-      <Form form={createForm} layout='vertical'>
-        <Form.Item name='operatorId' label='运营人员' rules={[{ required: true }]}><Select options={operatorProfiles.map(op => ({ value: op.id, label: op.name }))} /></Form.Item>
-        <Form.Item name='topicName' label='主题名称' rules={[{ required: true }]}><Input placeholder='例如：英国硕士申请季短视频主题包' /></Form.Item>
-      </Form>
-    </Modal>
-    <Modal open={uploadOpen} title='上传文件到主题包' onCancel={() => setUploadOpen(false)} onOk={() => uploadForm.validateFields().then(uploadFilesToPackage)} width={760}>
-      <Form form={uploadForm} layout='vertical'>
-        <Form.Item name='packageId' label='选择主题包' rules={[{ required: true, message: '请先选择已有主题包' }]}><Select showSearch optionFilterProp='label' options={packages.map(pkg => ({ value: pkg.id, label: `${pkg.operatorName} / ${pkg.folderPath.year} / ${String(pkg.folderPath.month).padStart(2, '0')} / ${String(pkg.folderPath.day).padStart(2, '0')} / ${pkg.topicName}` }))} /></Form.Item>
-        <Form.Item name='script' label='上传脚本'><Upload.Dragger beforeUpload={() => false} multiple accept='.doc,.docx,.txt,.pdf'><p><InboxOutlined /></p><p>脚本文件将归入 / 脚本</p></Upload.Dragger></Form.Item>
-        <Form.Item name='video' label='上传视频'><Upload.Dragger beforeUpload={() => false} multiple accept='video/*'><p><InboxOutlined /></p><p>视频文件将归入 / 视频</p></Upload.Dragger></Form.Item>
-        <Form.Item name='image' label='上传图片'><Upload.Dragger beforeUpload={() => false} multiple accept='image/*'><p><InboxOutlined /></p><p>图片文件将归入 / 图片</p></Upload.Dragger></Form.Item>
-      </Form>
-    </Modal>
-    <Modal open={Boolean(editPackage)} title='编辑主题信息' onCancel={() => setEditPackage(undefined)} onOk={() => editForm.validateFields().then(values => {
-      const op = operatorProfiles.find(item => item.id === values.operatorId)!;
-      setPackages(prev => prev.map(pkg => pkg.id === editPackage?.id ? { ...pkg, topicName: values.topicName, operatorId: op.id, operatorName: op.name, folderPath: { ...pkg.folderPath, operatorId: op.id, operatorName: op.name, topicName: values.topicName } } : pkg));
-      setEditPackage(undefined); message.success('主题信息已更新，自动路径已同步刷新');
-    })}>
-      <Form form={editForm} layout='vertical'>
-        <Form.Item name='operatorId' label='绑定运营人员' rules={[{ required: true }]}><Select options={operatorProfiles.map(op => ({ value: op.id, label: op.name }))} /></Form.Item>
-        <Form.Item name='topicName' label='主题名称' rules={[{ required: true }]}><Input /></Form.Item>
-      </Form>
-    </Modal>
+    <Modal open={createOpen} title='新建主题包' onCancel={() => setCreateOpen(false)} onOk={() => createForm.validateFields().then(createPackage)} confirmLoading={submitLoading}><Form form={createForm} layout='vertical'><Form.Item name='operatorId' label='运营人员' rules={[{ required: true }]}><Select options={operators.map(op => ({ value: op.id, label: op.name }))} /></Form.Item><Form.Item name='topicName' label='主题名称' rules={[{ required: true }]}><Input placeholder='例如：英国硕士申请季短视频主题包' /></Form.Item></Form></Modal>
+    <Modal open={uploadOpen} title='上传文件到主题包' onCancel={() => setUploadOpen(false)} onOk={() => uploadForm.validateFields().then(uploadFilesToPackage)} confirmLoading={submitLoading} width={760}><Form form={uploadForm} layout='vertical'><Form.Item name='packageId' label='选择主题包' rules={[{ required: true, message: '请先选择已有主题包' }]}><Select showSearch optionFilterProp='label' options={packages.map(pkg => ({ value: pkg.id, label: `${pkg.operatorName} / ${pkg.folderPath.year} / ${String(pkg.folderPath.month).padStart(2, '0')} / ${String(pkg.folderPath.day).padStart(2, '0')} / ${pkg.topicName}` }))} /></Form.Item><Form.Item name='script' label='上传脚本'><Upload.Dragger beforeUpload={() => false} multiple accept='.doc,.docx,.txt,.pdf'><p><InboxOutlined /></p><p>脚本文件将归入 / 脚本</p></Upload.Dragger></Form.Item><Form.Item name='video' label='上传视频'><Upload.Dragger beforeUpload={() => false} multiple accept='video/*'><p><InboxOutlined /></p><p>视频文件将归入 / 视频</p></Upload.Dragger></Form.Item><Form.Item name='image' label='上传图片'><Upload.Dragger beforeUpload={() => false} multiple accept='image/*'><p><InboxOutlined /></p><p>图片文件将归入 / 图片</p></Upload.Dragger></Form.Item></Form></Modal>
+    <Modal open={Boolean(editPackage)} title='编辑主题信息' onCancel={() => setEditPackage(undefined)} onOk={() => editForm.validateFields().then(updatePackage)} confirmLoading={submitLoading}><Form form={editForm} layout='vertical'><Form.Item name='operatorId' label='绑定运营人员' rules={[{ required: true }]}><Select options={operators.map(op => ({ value: op.id, label: op.name }))} /></Form.Item><Form.Item name='topicName' label='主题名称' rules={[{ required: true }]}><Input /></Form.Item></Form></Modal>
   </>;
 }

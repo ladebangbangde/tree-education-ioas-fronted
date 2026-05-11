@@ -1,42 +1,65 @@
-import { Card, Col, Row, Table } from 'antd';
+import { Card, Col, Row, Spin, Table } from 'antd';
 import ReactECharts from 'echarts-for-react';
-import dayjs from 'dayjs';
+import { useCallback, useEffect, useState } from 'react';
+import { reportsApi } from '@/api/reports';
 import { PageHeader, StatCard } from '@/components';
-import { assetFiles, contentPackages, mediaFlowLeads } from '@/mock/mediaFlow';
 import { useAuthStore } from '@/store/auth';
+import { adaptReportMetrics } from '@/utils/adapters/mediaFlow';
+
+interface PackageLeadRow { topicName: string; count: number; }
+interface TrendRow { date: string; count: number; }
+
+const adaptPackageRows = (rows: any[]): PackageLeadRow[] => (rows || []).map(row => ({ topicName: row.topicName || row.packageName || row.name || '-', count: Number(row.count ?? row.leadCount ?? row.total ?? 0) }));
+const adaptTrendRows = (rows: any[]): TrendRow[] => (rows || []).map(row => ({ date: row.date || row.day || row.label || '-', count: Number(row.count ?? row.leadCount ?? row.total ?? 0) }));
 
 export default function RoleReportsPage(){
   const role = useAuthStore(s => s.role);
   const isMedia = role === 'MEDIA';
-  const now = dayjs('2026-05-08');
-  const weekPackages = contentPackages.filter(pkg => dayjs(pkg.createdAt).isAfter(now.subtract(7, 'day')));
-  const monthPackages = contentPackages.filter(pkg => dayjs(pkg.createdAt).isSame(now, 'month'));
-  const leadByPackage = contentPackages.map(pkg => ({ topicName: pkg.topicName, count: mediaFlowLeads.filter(lead => lead.relatedPackageId === pkg.id).length }));
-  const trendOption = { xAxis: { type: 'category', data: ['5/4','5/5','5/6','5/7','5/8'] }, yAxis: { type: 'value' }, series: [{ type: 'line', smooth: true, data: [0, 1, 2, 1, 3] }] };
-  return <>
-    <PageHeader title={isMedia ? '数据报表｜媒体产出' : '数据报表｜线索结果'} extra={<span>{isMedia ? '删除文件或主题包后，统计从主题包与文件明细重新计算' : '只统计运营线索创建、分配和完成结果'}</span>} />
+  const [metrics, setMetrics] = useState(adaptReportMetrics({}));
+  const [leadByPackage, setLeadByPackage] = useState<PackageLeadRow[]>([]);
+  const [trend, setTrend] = useState<TrendRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const loadReports = useCallback(async () => {
+    setLoading(true);
+    try {
+      if (isMedia) {
+        setMetrics(adaptReportMetrics(await reportsApi.mediaOutput()));
+        setLeadByPackage([]); setTrend([]);
+      } else {
+        const [summary, byPackage, trendRows] = await Promise.all([reportsApi.operatorLeads(), reportsApi.operatorByPackage(), reportsApi.operatorTrend()]);
+        setMetrics(adaptReportMetrics(summary));
+        setLeadByPackage(adaptPackageRows(byPackage));
+        setTrend(adaptTrendRows(trendRows));
+      }
+    } finally { setLoading(false); }
+  }, [isMedia]);
+  useEffect(() => { loadReports().catch(() => undefined); }, [loadReports]);
+
+  const trendOption = { xAxis: { type: 'category', data: trend.map(item => item.date) }, yAxis: { type: 'value' }, series: [{ type: 'line', smooth: true, data: trend.map(item => item.count) }] };
+  return <Spin spinning={loading}>
+    <PageHeader title={isMedia ? '数据报表｜媒体产出' : '数据报表｜线索结果'} extra={<span>{isMedia ? '统计来自媒体产出接口' : '统计来自运营线索报表接口'}</span>} />
     {isMedia ? <>
       <Row gutter={[16,16]}>
-        <Col span={8}><StatCard title='脚本文案总数' value={assetFiles.filter(f => f.fileType === 'script' && contentPackages.some(pkg => pkg.id === f.packageId)).length} /></Col>
-        <Col span={8}><StatCard title='视频文件总数' value={assetFiles.filter(f => f.fileType === 'video' && contentPackages.some(pkg => pkg.id === f.packageId)).length} /></Col>
-        <Col span={8}><StatCard title='图片文件总数' value={assetFiles.filter(f => f.fileType === 'image' && contentPackages.some(pkg => pkg.id === f.packageId)).length} /></Col>
-        <Col span={12}><StatCard title='本周新增主题包' value={weekPackages.length} /></Col>
-        <Col span={12}><StatCard title='本月新增主题包' value={monthPackages.length} /></Col>
+        <Col span={8}><StatCard title='脚本文案总数' value={metrics.scriptCount} /></Col>
+        <Col span={8}><StatCard title='视频文件总数' value={metrics.videoCount} /></Col>
+        <Col span={8}><StatCard title='图片文件总数' value={metrics.imageCount} /></Col>
+        <Col span={12}><StatCard title='本周新增主题包' value={metrics.weekPackageCount} /></Col>
+        <Col span={12}><StatCard title='本月新增主题包' value={metrics.monthPackageCount} /></Col>
       </Row>
-      <Card title='媒体产出说明'>当前报表只统计当前媒体账号上传的内容产出，不统计运营后续线索转化结果。</Card>
+      <Card title='媒体产出说明'>当前报表只统计后端媒体产出接口返回的数据，不统计运营后续线索转化结果。</Card>
     </> : <>
       <Row gutter={[16,16]}>
-        <Col span={6}><StatCard title='线索总数' value={mediaFlowLeads.length} /></Col>
-        <Col span={6}><StatCard title='今日新增' value={mediaFlowLeads.filter(l => dayjs(l.createdAt).isSame(now, 'day')).length} /></Col>
-        <Col span={6}><StatCard title='本周新增' value={mediaFlowLeads.filter(l => dayjs(l.createdAt).isAfter(now.subtract(7, 'day'))).length} /></Col>
-        <Col span={6}><StatCard title='未分配数' value={mediaFlowLeads.filter(l => l.status === 'unassigned').length} /></Col>
-        <Col span={6}><StatCard title='已分配数' value={mediaFlowLeads.filter(l => l.status === 'assigned').length} /></Col>
-        <Col span={6}><StatCard title='已完成数' value={mediaFlowLeads.filter(l => l.status === 'completed').length} /></Col>
+        <Col span={6}><StatCard title='线索总数' value={metrics.totalLeads} /></Col>
+        <Col span={6}><StatCard title='今日新增' value={metrics.todayNew} /></Col>
+        <Col span={6}><StatCard title='本周新增' value={metrics.weekNew} /></Col>
+        <Col span={6}><StatCard title='未分配数' value={metrics.unassigned} /></Col>
+        <Col span={6}><StatCard title='已分配数' value={metrics.assigned} /></Col>
+        <Col span={6}><StatCard title='已完成数' value={metrics.completed} /></Col>
       </Row>
       <Row gutter={[16,16]}>
         <Col span={12}><Card title='按素材主题统计线索数量'><Table rowKey='topicName' pagination={false} dataSource={leadByPackage} columns={[{ title: '素材主题', dataIndex: 'topicName' }, { title: '线索数量', dataIndex: 'count' }]} /></Card></Col>
         <Col span={12}><Card title='时间趋势'><ReactECharts option={trendOption} style={{ height: 320 }} /></Card></Col>
       </Row>
     </>}
-  </>;
+  </Spin>;
 }

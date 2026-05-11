@@ -99,7 +99,7 @@ export function AllAssetsGroupedView(props: AssetViewProps) {
   </Space>;
 }
 
-export default function AssetFolderBrowser({ packages, files, permissions, onView, onPreview, onDownload, onEdit, onDelete, onDeleteFile, onUpload, onGenerateLead }: { packages: ContentPackage[]; files: AssetFile[]; permissions: ResourceActionPermissions; onView: (pkg: ContentPackage) => void; onPreview?: (file: AssetFile) => void; onDownload?: (file: AssetFile) => void; onEdit?: (pkg: ContentPackage) => void; onDelete?: (pkg: ContentPackage) => void; onDeleteFile?: (file: AssetFile) => void; onUpload?: (pkg: ContentPackage) => void; onGenerateLead?: (pkg: ContentPackage) => void }) {
+export default function AssetFolderBrowser({ packages, files, permissions = { canPreview: false, canDownload: false, canEdit: false, canDelete: false, canGenerateLead: true, canUpload: false }, onView, onPreview, onDownload, onEdit, onDelete, onDeleteFile, onUpload, onGenerateLead }: { packages: ContentPackage[]; files: AssetFile[]; permissions?: ResourceActionPermissions; onView: (pkg: ContentPackage) => void; onPreview?: (file: AssetFile) => void; onDownload?: (file: AssetFile) => void; onEdit?: (pkg: ContentPackage) => void; onDelete?: (pkg: ContentPackage) => void; onDeleteFile?: (file: AssetFile) => void; onUpload?: (pkg: ContentPackage) => void; onGenerateLead?: (pkg: ContentPackage) => void }) {
   const [selectedTreeKey, setSelectedTreeKey] = useState<string>();
   const [selectedPackageId, setSelectedPackageId] = useState<string>();
   const [activeAssetType, setActiveAssetType] = useState<AssetViewType>('all');
