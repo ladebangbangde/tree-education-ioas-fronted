@@ -25,8 +25,14 @@ const fieldDefaultFileType: Record<UploadField, UploadTaskFileType> = {
   image: 'image'
 };
 
-const collectUploadFiles = (files?: UploadFile[], fallbackType?: UploadTaskFileType) => {
-  return (files || [])
+const normalizeUploadFileList = (event: UploadFile[] | { fileList?: UploadFile[] }) => {
+  if (Array.isArray(event)) return event;
+  return event?.fileList || [];
+};
+
+const collectUploadFiles = (value?: UploadFile[] | { fileList?: UploadFile[] }, fallbackType?: UploadTaskFileType) => {
+  const files = normalizeUploadFileList(value || []);
+  return files
     .map(file => file.originFileObj as File | undefined)
     .filter((file): file is File => Boolean(file))
     .map(file => ({ file, fileType: inferUploadTaskFileType(file, fallbackType) }));
@@ -125,9 +131,9 @@ export default function ContentPackagesPage(){
   const uploadFilesToPackage = async (values: any) => {
     const packageId = String(values.packageId || '');
     const uploadItems = [
-      ...collectUploadFiles(values.script?.fileList, fieldDefaultFileType.script),
-      ...collectUploadFiles(values.video?.fileList, fieldDefaultFileType.video),
-      ...collectUploadFiles(values.image?.fileList, fieldDefaultFileType.image)
+      ...collectUploadFiles(values.script, fieldDefaultFileType.script),
+      ...collectUploadFiles(values.video, fieldDefaultFileType.video),
+      ...collectUploadFiles(values.image, fieldDefaultFileType.image)
     ];
 
     if (!packageId) { message.warning('请先选择主题包'); return; }
@@ -195,7 +201,7 @@ export default function ContentPackagesPage(){
     ]} />
     <ContentPackageDetailDrawer open={Boolean(detailPackage)} onClose={() => setDetail(undefined)} item={detailPackage} files={currentFiles} extraActions={detailPackage && canUseButton(role, 'upload') && <Button icon={<UploadOutlined />} onClick={() => openUpload(detailPackage)}>上传文件</Button>} canDeleteFile={canUseButton(role, 'deleteOwnContent')} onDeleteFile={deleteFileFromPackage} />
     <Modal open={createOpen} title='新建主题包' onCancel={() => setCreateOpen(false)} onOk={() => createForm.validateFields().then(createPackage)} confirmLoading={submitLoading}><Form form={createForm} layout='vertical'><Form.Item name='operatorId' label='运营人员' rules={[{ required: true }]}><Select options={operators.map(op => ({ value: op.id, label: op.name }))} /></Form.Item><Form.Item name='topicName' label='主题名称' rules={[{ required: true }]}><Input placeholder='例如：英国硕士申请季短视频主题包' /></Form.Item></Form></Modal>
-    <Modal open={uploadOpen} title='上传文件到主题包' onCancel={() => setUploadOpen(false)} onOk={() => uploadForm.validateFields().then(uploadFilesToPackage)} confirmLoading={submitLoading} width={760}><Form form={uploadForm} layout='vertical'><Form.Item name='packageId' label='选择主题包' rules={[{ required: true, message: '请先选择已有主题包' }]}><Select showSearch optionFilterProp='label' options={packages.map(pkg => ({ value: pkg.id, label: `${pkg.operatorName} / ${pkg.folderPath.year} / ${String(pkg.folderPath.month).padStart(2, '0')} / ${String(pkg.folderPath.day).padStart(2, '0')} / ${pkg.topicName}` }))} /></Form.Item><Form.Item name='script' label='上传脚本'><Upload.Dragger beforeUpload={() => false} multiple accept='.doc,.docx,.txt,.pdf'><p><InboxOutlined /></p><p>脚本文件将创建上传任务并归入 / 脚本</p></Upload.Dragger></Form.Item><Form.Item name='video' label='上传视频'><Upload.Dragger beforeUpload={() => false} multiple accept='video/*'><p><InboxOutlined /></p><p>视频文件将创建上传任务并归入 / 视频</p></Upload.Dragger></Form.Item><Form.Item name='image' label='上传图片'><Upload.Dragger beforeUpload={() => false} multiple accept='image/*'><p><InboxOutlined /></p><p>图片文件将创建上传任务并归入 / 图片</p></Upload.Dragger></Form.Item></Form></Modal>
+    <Modal open={uploadOpen} title='上传文件到主题包' onCancel={() => setUploadOpen(false)} onOk={() => uploadForm.validateFields().then(uploadFilesToPackage)} confirmLoading={submitLoading} width={760}><Form form={uploadForm} layout='vertical'><Form.Item name='packageId' label='选择主题包' rules={[{ required: true, message: '请先选择已有主题包' }]}><Select showSearch optionFilterProp='label' options={packages.map(pkg => ({ value: pkg.id, label: `${pkg.operatorName} / ${pkg.folderPath.year} / ${String(pkg.folderPath.month).padStart(2, '0')} / ${String(pkg.folderPath.day).padStart(2, '0')} / ${pkg.topicName}` }))} /></Form.Item><Form.Item name='script' label='上传脚本' valuePropName='fileList' getValueFromEvent={normalizeUploadFileList}><Upload.Dragger beforeUpload={() => false} multiple accept='.doc,.docx,.txt,.pdf'><p><InboxOutlined /></p><p>脚本文件将创建上传任务并归入 / 脚本</p></Upload.Dragger></Form.Item><Form.Item name='video' label='上传视频' valuePropName='fileList' getValueFromEvent={normalizeUploadFileList}><Upload.Dragger beforeUpload={() => false} multiple accept='video/*'><p><InboxOutlined /></p><p>视频文件将创建上传任务并归入 / 视频</p></Upload.Dragger></Form.Item><Form.Item name='image' label='上传图片' valuePropName='fileList' getValueFromEvent={normalizeUploadFileList}><Upload.Dragger beforeUpload={() => false} multiple accept='image/*'><p><InboxOutlined /></p><p>图片文件将创建上传任务并归入 / 图片</p></Upload.Dragger></Form.Item></Form></Modal>
     <Modal open={Boolean(editPackage)} title='编辑主题信息' onCancel={() => setEditPackage(undefined)} onOk={() => editForm.validateFields().then(updatePackage)} confirmLoading={submitLoading}><Form form={editForm} layout='vertical'><Form.Item name='operatorId' label='绑定运营人员' rules={[{ required: true }]}><Select options={operators.map(op => ({ value: op.id, label: op.name }))} /></Form.Item><Form.Item name='topicName' label='主题名称' rules={[{ required: true }]}><Input /></Form.Item></Form></Modal>
   </>;
 }
