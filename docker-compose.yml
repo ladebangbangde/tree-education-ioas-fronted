@@ -1,7 +1,18 @@
 services:
   tree-education-ioas-fronted:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_API_BASE_URL: http://ioasbackend.ldbbd.com/api/v1
+        VITE_API_ROOT_URL: http://ioasbackend.ldbbd.com/api
     container_name: tree-education-ioas-fronted
     ports:
-      - "8080:80"
+      - "18081:80"
     restart: always
+    networks:
+      - ioas-network
+
+networks:
+  ioas-network:
+    external: true
+    name: tree-education-ioas_ioas-network
