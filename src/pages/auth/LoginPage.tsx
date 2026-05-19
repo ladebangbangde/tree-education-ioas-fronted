@@ -1,4 +1,4 @@
-import { Button, Card, Checkbox, Form, Input, Typography, message } from 'antd';
+import { Button, Card, Checkbox, Form, Input, Space, Typography, message } from 'antd';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getDefaultRoute } from '@/constants/permissions';
@@ -8,6 +8,7 @@ export default function LoginPage(){
   const nav = useNavigate();
   const loc = useLocation();
   const loginByApi = useAuthStore(s=>s.loginByApi);
+  const mockLogin = useAuthStore(s=>s.login);
   const [loading, setLoading] = useState(false);
 
   return <div className='login'>
@@ -31,11 +32,20 @@ export default function LoginPage(){
             }
           }}
         >
-          <Form.Item label='账号' name='username' rules={[{required:true,message:'请输入账号'}]}><Input placeholder='请输入后端账号'/></Form.Item>
+          <Form.Item label='账号' name='username' rules={[{required:true,message:'请输入账号'}]}><Input placeholder='admin / media / operator / consultant 任一演示账号'/></Form.Item>
           <Form.Item label='密码' name='password' rules={[{required:true,message:'请输入密码'}]}><Input.Password/></Form.Item>
           <Form.Item name='remember' valuePropName='checked'><Checkbox>记住我</Checkbox></Form.Item>
-          <Button type='primary' htmlType='submit' block loading={loading}>登录系统</Button>
+          <Button type='primary' htmlType='submit' block loading={loading}>登录演示系统</Button>
         </Form>
+        <Typography.Paragraph type='secondary' style={{ marginTop: 16 }}>演示版固定使用本地 mock 登录，不会请求后端。也可以直接选择角色进入：</Typography.Paragraph>
+        <Space wrap>
+          {[
+            ['SUPER_ADMIN', '超管'],
+            ['MEDIA', '媒体'],
+            ['OPERATOR', '运营'],
+            ['CONSULTANT', '顾问']
+          ].map(([role, label]) => <Button key={role} onClick={() => { mockLogin(`${label}演示账号`, 'mock', role as any); nav(getDefaultRoute(role as any), { replace: true }); }}>{label}演示</Button>)}
+        </Space>
       </Card>
     </div>
   </div>;

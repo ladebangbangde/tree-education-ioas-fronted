@@ -37,7 +37,7 @@ export default function RoleReportsPage(){
 
   const trendOption = { xAxis: { type: 'category', data: trend.map(item => item.date) }, yAxis: { type: 'value' }, series: [{ type: 'line', smooth: true, data: trend.map(item => item.count) }] };
   return <Spin spinning={loading}>
-    <PageHeader title={isMedia ? '数据报表｜媒体产出' : '数据报表｜线索结果'} extra={<span>{isMedia ? '统计来自媒体产出接口' : '统计来自运营线索报表接口'}</span>} />
+    <PageHeader title={isMedia ? '数据报表｜媒体产出' : '数据报表｜线索结果'} extra={<span>{isMedia ? '统计来自本地媒体产出 mock' : '统计来自本地运营线索 mock'}</span>} />
     {isMedia ? <>
       <Row gutter={[16,16]}>
         <Col span={8}><StatCard title='脚本文案总数' value={metrics.scriptCount} /></Col>
@@ -46,7 +46,7 @@ export default function RoleReportsPage(){
         <Col span={12}><StatCard title='本周新增主题包' value={metrics.weekPackageCount} /></Col>
         <Col span={12}><StatCard title='本月新增主题包' value={metrics.monthPackageCount} /></Col>
       </Row>
-      <Card title='媒体产出说明'>当前报表只统计后端媒体产出接口返回的数据，不统计运营后续线索转化结果。</Card>
+      <Card title='媒体产出说明'>当前报表只统计本地 mock 媒体产出数据，不依赖任何后端服务。</Card>
     </> : <>
       <Row gutter={[16,16]}>
         <Col span={6}><StatCard title='线索总数' value={metrics.totalLeads} /></Col>

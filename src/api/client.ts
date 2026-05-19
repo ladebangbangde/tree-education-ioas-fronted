@@ -1,35 +1,6 @@
-import axios from 'axios';
-import { message } from 'antd';
 import type { ApiResponse, PageResult } from '@/types/api';
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
-
-const client = axios.create({ baseURL: API_BASE_URL, timeout: 15000 });
-
-client.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
-client.interceptors.response.use(
-  response => response,
-  error => {
-    const status = error?.response?.status;
-    const text = error?.response?.data?.message || error?.response?.data?.msg || error?.message || '接口请求失败';
-    if (status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('role');
-      localStorage.removeItem('userName');
-      localStorage.removeItem('department');
-      localStorage.removeItem('userId');
-      if (window.location.pathname !== '/login') window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
-    } else if (text) {
-      message.error(text);
-    }
-    return Promise.reject(error);
-  }
-);
+export const API_BASE_URL = 'mock://local-demo';
 
 export function unwrapResponse<T>(payload: ApiResponse<T> | T): T {
   if (payload && typeof payload === 'object' && 'data' in payload) return (payload as ApiResponse<T>).data as T;
@@ -48,4 +19,10 @@ export function normalizePage<T>(payload: unknown): PageResult<T> {
   };
 }
 
-export default client;
+const client = new Proxy({}, {
+  get() {
+    throw new Error('当前分支固定为纯前端 mock 演示版，禁止发起真实 API 请求。');
+  }
+});
+
+export default client as never;

@@ -79,7 +79,7 @@ export default function MediaResourceCenterPage(){
   const handlePreview = async (file: AssetFile) => {
     const data = await assetsApi.preview(file.id);
     const url = typeof data === 'string' ? data : data?.url || data?.previewUrl || file.previewUrl;
-    if (url) window.open(url, '_blank', 'noopener,noreferrer'); else message.info('后端未返回可预览地址');
+    if (url) window.open(url, '_blank', 'noopener,noreferrer'); else message.info('暂无可预览地址，演示版使用本地 mock 预览信息');
   };
 
   const createPackage = async (values: { operatorId: string; topicName: string }) => {

@@ -1,5 +1,9 @@
-import axios from 'axios';
-const http = axios.create({ baseURL: '/api', timeout: 10000 });
-http.interceptors.request.use((config)=>{const token=localStorage.getItem('token');if(token) config.headers.Authorization=`Bearer ${token}`;return config;});
-http.interceptors.response.use((r)=>r,(e)=>Promise.reject(e));
-export default http;
+const mockHttp = {
+  get: <T = unknown>(url: string) => Promise.resolve({ data: { url, mock: true } as T }),
+  post: <T = unknown>(url: string, body?: unknown) => Promise.resolve({ data: { url, body, mock: true } as T }),
+  put: <T = unknown>(url: string, body?: unknown) => Promise.resolve({ data: { url, body, mock: true } as T }),
+  patch: <T = unknown>(url: string, body?: unknown) => Promise.resolve({ data: { url, body, mock: true } as T }),
+  delete: <T = unknown>(url: string) => Promise.resolve({ data: { url, mock: true } as T })
+};
+
+export default mockHttp;

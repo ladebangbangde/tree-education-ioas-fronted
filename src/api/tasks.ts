@@ -1,16 +1,7 @@
-import client, { unwrapResponse } from './client';
+import { mockTasks } from '@/mock/mediaFlowApi';
 
 export const tasksApi = {
-  async media() {
-    const res = await client.get('/tasks/media');
-    return unwrapResponse<any[]>(res.data);
-  },
-  async operator() {
-    const res = await client.get('/tasks/operator');
-    return unwrapResponse<any[]>(res.data);
-  },
-  async update(id: string, payload: Record<string, unknown>) {
-    const res = await client.patch(`/tasks/${id}`, payload);
-    return unwrapResponse<any>(res.data);
-  }
+  media: () => mockTasks.media(),
+  operator: () => mockTasks.operator(),
+  update: (id: string, payload: Record<string, unknown>) => mockTasks.update(id, payload)
 };
