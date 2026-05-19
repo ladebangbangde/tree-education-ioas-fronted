@@ -1,4 +1,4 @@
-import client, { unwrapResponse } from './client';
+import { rootClient, unwrapResponse } from './client';
 
 export type UploadTaskFileType = 'image' | 'video' | 'script' | 'document';
 
@@ -19,13 +19,13 @@ export interface UploadTaskResponse {
 
 export const uploadTasksApi = {
   async create(payload: UploadTaskCreatePayload) {
-    const res = await client.post('/upload-tasks', payload);
+    const res = await rootClient.post('/upload-tasks', payload);
     return unwrapResponse<UploadTaskResponse>(res.data);
   },
   async uploadFile(taskId: string | number, file: File, fileType: UploadTaskFileType) {
     const formData = new FormData();
     formData.append('file', file);
-    const res = await client.post(`/upload-tasks/${taskId}/files`, formData, {
+    const res = await rootClient.post(`/upload-tasks/${taskId}/files`, formData, {
       params: { fileType },
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 0
@@ -33,11 +33,11 @@ export const uploadTasksApi = {
     return unwrapResponse<UploadTaskResponse>(res.data);
   },
   async get(taskId: string | number) {
-    const res = await client.get(`/upload-tasks/${taskId}`);
+    const res = await rootClient.get(`/upload-tasks/${taskId}`);
     return unwrapResponse<UploadTaskResponse>(res.data);
   },
   async fail(taskId: string | number, message?: string) {
-    const res = await client.post(`/upload-tasks/${taskId}/fail`, null, { params: { message } });
+    const res = await rootClient.post(`/upload-tasks/${taskId}/fail`, null, { params: { message } });
     return unwrapResponse<UploadTaskResponse>(res.data);
   }
 };
