@@ -1,6 +1,6 @@
 import { rootClient, unwrapResponse } from './client';
 
-export type UploadTaskFileType = 'image' | 'video' | 'script' | 'document';
+export type UploadTaskFileType = 'image' | 'video' | 'script';
 
 export interface UploadTaskCreatePayload {
   packageId?: string | number;
@@ -48,9 +48,9 @@ export function inferUploadTaskFileType(file: File, fallback?: UploadTaskFileTyp
 
   if (mime.startsWith('image/')) return 'image';
   if (mime.startsWith('video/')) return 'video';
-  if (mime === 'application/pdf') return 'document';
-  if (name.endsWith('.pdf') || name.endsWith('.doc') || name.endsWith('.docx')) return 'document';
+  if (mime === 'application/pdf') return 'script';
+  if (name.endsWith('.pdf') || name.endsWith('.doc') || name.endsWith('.docx')) return 'script';
   if (mime.startsWith('text/') || name.endsWith('.txt')) return 'script';
 
-  return fallback || 'document';
+  return fallback || 'script';
 }
