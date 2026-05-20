@@ -1,12 +1,11 @@
 import { Button, Progress, Space, Tag, message } from 'antd';
 import dayjs from 'dayjs';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { contentPackagesApi } from '@/api/contentPackages';
+import { useCallback, useEffect, useState } from 'react';
 import { tasksApi } from '@/api/tasks';
 import { DataTable, PageHeader } from '@/components';
 import { useAuthStore } from '@/store/auth';
-import type { ContentPackage, Task } from '@/types/mediaFlow';
-import { adaptContentPackage, adaptTask } from '@/utils/adapters/mediaFlow';
+import type { Task } from '@/types/mediaFlow';
+import { adaptTask } from '@/utils/adapters/mediaFlow';
 
 const mediaStatus: Record<string, { text: string; color: string }> = {
   created: { text: '已创建', color: 'default' },
@@ -20,48 +19,35 @@ const mediaStatus: Record<string, { text: string; color: string }> = {
 const operatorStatus: Record<string, { text: string; color: string }> = { pending: { text: '待处理', color: 'orange' }, processing: { text: '处理中', color: 'processing' }, completed: { text: '已完成', color: 'green' }, overdue: { text: '已逾期', color: 'red' }, rejected: { text: '已驳回', color: 'volcano' } };
 
 const formatDateTime = (value?: string) => value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
+const displayCount = (value?: number) => value === undefined || value === null ? '-' : value;
 
 export default function TaskCenterPage(){
   const role = useAuthStore(s => s.role);
   const userId = useAuthStore(s => s.id);
   const isMedia = role === 'MEDIA';
   const [data, setData] = useState<Task[]>([]);
-  const [packages, setPackages] = useState<ContentPackage[]>([]);
   const [loading, setLoading] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [taskRows, recordPkgPage, minePkgPage] = await Promise.all([
-        isMedia ? tasksApi.media() : tasksApi.operator(),
-        contentPackagesApi.list({ tab: 'record', pageNum: 1, pageSize: 500 }),
-        contentPackagesApi.list({ tab: 'mine', pageNum: 1, pageSize: 500 })
-      ]);
+      const taskRows = isMedia ? await tasksApi.media() : await tasksApi.operator();
       const rows = (taskRows || []).map(row => adaptTask(row, isMedia ? 'media' : 'operator'));
       const visibleRows = role === 'SUPER_ADMIN' ? rows : rows.filter(row => !userId || !row.assigneeId || row.assigneeId === userId);
-      const allPackages = [...recordPkgPage.records, ...minePkgPage.records].map(adaptContentPackage);
-      const pkgMap = new Map<string, ContentPackage>();
-      allPackages.forEach(pkg => pkgMap.set(pkg.id, pkg));
       setData(visibleRows);
-      setPackages(Array.from(pkgMap.values()));
     } finally { setLoading(false); }
   }, [isMedia, role, userId]);
   useEffect(() => { loadData().catch(() => undefined); }, [loadData]);
 
-  const packageMap = useMemo(() => new Map(packages.map(pkg => [pkg.id, pkg])), [packages]);
   const patchTask = async (task: Task, action: string) => {
     await tasksApi.update(task.id, { action });
     message.success('任务已更新');
     loadData();
   };
-  const getPackage = (task: Task) => packageMap.get(task.relatedPackageId);
-  const getFileTotal = (task: Task) => {
-    const pkg = getPackage(task);
-    return (pkg?.scriptCount || 0) + (pkg?.videoCount || 0) + (pkg?.imageCount || 0);
-  };
+
   const common = [
-    { title: '主题名称', render: (_: unknown, r: Task) => getPackage(r)?.topicName || `主题包 #${r.relatedPackageId || '-'}` },
-    { title: isMedia ? '绑定运营' : '负责人', render: (_: unknown, r: Task) => isMedia ? getPackage(r)?.operatorName || r.assigneeName || '-' : r.assigneeName || '-' },
+    { title: '主题名称', render: (_: unknown, r: Task) => r.topicName || r.title || `主题包 #${r.relatedPackageId || '-'}` },
+    { title: isMedia ? '绑定运营' : '负责人', render: (_: unknown, r: Task) => isMedia ? r.operatorName || r.assigneeName || '-' : r.assigneeName || '-' },
     { title: '状态', dataIndex: 'status', render: (v: string) => { const map = isMedia ? mediaStatus : operatorStatus; return <Tag color={map[v]?.color}>{map[v]?.text || v}</Tag>; } },
     { title: '进度', dataIndex: 'progress', width: 180, render: (v: number) => <Progress percent={v || 0} size='small' /> },
     { title: '开始时间', dataIndex: 'createdAt', render: formatDateTime },
@@ -69,9 +55,9 @@ export default function TaskCenterPage(){
   ];
   const mediaColumns = [
     ...common.slice(0, 2),
-    { title: '文件总数', render: (_: unknown, r: Task) => getFileTotal(r) || '-' },
-    { title: '成功数', render: (_: unknown, r: Task) => r.status === 'success' ? (getFileTotal(r) || 1) : '-' },
-    { title: '失败数', render: (_: unknown, r: Task) => r.status === 'failed' ? 1 : r.status === 'partial_success' ? 1 : 0 },
+    { title: '文件总数', render: (_: unknown, r: Task) => displayCount(r.fileTotal) },
+    { title: '成功数', render: (_: unknown, r: Task) => displayCount(r.successCount) },
+    { title: '失败数', render: (_: unknown, r: Task) => displayCount(r.failedCount) },
     ...common.slice(2),
     { title: '失败原因', dataIndex: 'errorMessage', render: (v?: string) => v || '-' },
     { title: '操作', render: (_: unknown, r: Task) => r.status === 'failed' || r.status === 'partial_success' || r.status === 'pending_supplement' ? <Button type='link' onClick={() => patchTask(r, 'retry')}>重试</Button> : '-' }
