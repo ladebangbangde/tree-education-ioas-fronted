@@ -1,4 +1,4 @@
-import { Button, Drawer, Progress, Popconfirm, Space, Tag, Typography, message } from 'antd';
+import { Button, Drawer, Progress, Popconfirm, Radio, Space, Tag, Typography, message } from 'antd';
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { tasksApi } from '@/api/tasks';
@@ -21,11 +21,14 @@ const operatorStatus: Record<string, { text: string; color: string; status?: 'su
 
 const formatDateTime = (value?: string) => value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
 const isTerminal = (status: string) => ['success', 'failed', 'cancelled', 'completed', 'rejected'].includes(status);
+type TaskView = 'media' | 'operator';
 
 export default function TaskCenterPage(){
   const role = useAuthStore(s => s.role);
   const userId = useAuthStore(s => s.id);
-  const isMedia = role === 'MEDIA';
+  const [adminView, setAdminView] = useState<TaskView>('media');
+  const view: TaskView = role === 'OPERATOR' ? 'operator' : role === 'SUPER_ADMIN' ? adminView : 'media';
+  const isMedia = view === 'media';
   const [data, setData] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [logTask, setLogTask] = useState<Task>();
@@ -111,9 +114,13 @@ export default function TaskCenterPage(){
     </Space> }
   ];
   const operatorColumns = [...common, { title: '操作', fixed: 'right' as const, render: (_: unknown, r: Task) => <Space>{r.status !== 'completed' && <Button type='link' onClick={() => patchTask(r, 'process')}>去生成线索</Button>}<Button type='link' onClick={() => openLogs(r)}>日志</Button></Space> }];
+  const extra = <Space>
+    {role === 'SUPER_ADMIN' && <Radio.Group size='small' value={adminView} onChange={event => { setAdminView(event.target.value); setData([]); }} options={[{ label: '上传任务', value: 'media' }, { label: '运营任务', value: 'operator' }]} />}
+    <span>{isMedia ? `文件级任务，3秒自动刷新｜进行中 ${activeCount} 个` : `运营任务，3秒自动刷新｜进行中 ${activeCount} 个`}</span>
+  </Space>;
 
   return <>
-    <PageHeader title={isMedia ? '任务中心｜文件级上传任务' : '任务中心｜线索生成任务'} extra={<span>{isMedia ? `文件级任务，自动刷新中｜进行中 ${activeCount} 个` : '素材入库后自动生成运营待处理任务'}</span>} />
+    <PageHeader title={isMedia ? '任务中心｜文件级上传任务' : '任务中心｜线索生成任务'} extra={extra} />
     <DataTable loading={loading} rowKey='id' columns={isMedia ? mediaColumns : operatorColumns} dataSource={data} scroll={{ x: 1500 }} />
     <Drawer open={Boolean(logTask)} onClose={() => { setLogTask(undefined); setLogs([]); }} title={`任务日志：${logTask?.id || ''}`} width={760}>
       <Typography.Paragraph type='secondary'>每个任务独立日志文件：task-{logTask?.id}.log，3 秒自动刷新。</Typography.Paragraph>
