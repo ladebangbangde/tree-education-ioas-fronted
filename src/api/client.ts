@@ -5,6 +5,12 @@ import type { ApiResponse, PageResult } from '@/types/api';
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 export const API_ROOT_URL = import.meta.env.VITE_API_ROOT_URL || 'http://localhost:8080/api';
 
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    silent?: boolean;
+  }
+}
+
 function attachInterceptors(instance: ReturnType<typeof axios.create>) {
   instance.interceptors.request.use(config => {
     const token = localStorage.getItem('token');
@@ -17,6 +23,7 @@ function attachInterceptors(instance: ReturnType<typeof axios.create>) {
     error => {
       const status = error?.response?.status;
       const text = error?.response?.data?.message || error?.response?.data?.msg || error?.message || '接口请求失败';
+      const silent = Boolean(error?.config?.silent);
       if (status === 401) {
         localStorage.removeItem('token');
         localStorage.removeItem('role');
@@ -24,7 +31,7 @@ function attachInterceptors(instance: ReturnType<typeof axios.create>) {
         localStorage.removeItem('department');
         localStorage.removeItem('userId');
         if (window.location.pathname !== '/login') window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
-      } else if (text && !axios.isCancel(error)) {
+      } else if (!silent && text && !axios.isCancel(error)) {
         message.error(text);
       }
       return Promise.reject(error);
