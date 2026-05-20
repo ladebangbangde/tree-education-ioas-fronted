@@ -1,6 +1,6 @@
 import { Button, Drawer, Progress, Popconfirm, Space, Tag, Typography, message } from 'antd';
 import dayjs from 'dayjs';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { tasksApi } from '@/api/tasks';
 import { DataTable, PageHeader } from '@/components';
 import { useAuthStore } from '@/store/auth';
@@ -30,20 +30,27 @@ export default function TaskCenterPage(){
   const [loading, setLoading] = useState(false);
   const [logTask, setLogTask] = useState<Task>();
   const [logs, setLogs] = useState<string[]>([]);
+  const listLoadingRef = useRef(false);
+  const logsLoadingRef = useRef(false);
 
-  const loadData = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
+  const loadData = useCallback(async (quiet = false) => {
+    if (listLoadingRef.current) return;
+    listLoadingRef.current = true;
+    if (!quiet) setLoading(true);
     try {
-      const taskRows = isMedia ? await tasksApi.media() : await tasksApi.operator();
+      const taskRows = isMedia ? await tasksApi.media({ quiet }) : await tasksApi.operator({ quiet });
       const rows = (taskRows || []).map(row => adaptTask(row, isMedia ? 'media' : 'operator'));
       const visibleRows = role === 'SUPER_ADMIN' ? rows : rows.filter(row => !userId || !row.assigneeId || row.assigneeId === userId);
       setData(visibleRows);
-    } finally { if (!silent) setLoading(false); }
+    } finally {
+      listLoadingRef.current = false;
+      if (!quiet) setLoading(false);
+    }
   }, [isMedia, role, userId]);
 
   useEffect(() => { loadData().catch(() => undefined); }, [loadData]);
   useEffect(() => {
-    const timer = window.setInterval(() => loadData(true).catch(() => undefined), 2000);
+    const timer = window.setInterval(() => loadData(true).catch(() => undefined), 3000);
     return () => window.clearInterval(timer);
   }, [loadData]);
 
@@ -59,20 +66,27 @@ export default function TaskCenterPage(){
     message.success('任务已取消');
     loadData();
   };
+  const refreshLogs = useCallback(async (task: Task, quiet = false) => {
+    if (logsLoadingRef.current) return;
+    logsLoadingRef.current = true;
+    try {
+      const rows = await tasksApi.logs(task.id, 300, { quiet });
+      setLogs(rows || []);
+    } finally {
+      logsLoadingRef.current = false;
+    }
+  }, []);
   const openLogs = async (task: Task) => {
     setLogTask(task);
-    const rows = await tasksApi.logs(task.id, 300);
-    setLogs(rows || []);
+    setLogs([]);
+    await refreshLogs(task, false);
   };
 
   useEffect(() => {
     if (!logTask) return;
-    const timer = window.setInterval(async () => {
-      const rows = await tasksApi.logs(logTask.id, 300).catch(() => []);
-      setLogs(rows || []);
-    }, 2000);
+    const timer = window.setInterval(() => refreshLogs(logTask, true).catch(() => undefined), 3000);
     return () => window.clearInterval(timer);
-  }, [logTask]);
+  }, [logTask, refreshLogs]);
 
   const common = [
     { title: '任务ID', dataIndex: 'id', width: 90 },
@@ -102,7 +116,7 @@ export default function TaskCenterPage(){
     <PageHeader title={isMedia ? '任务中心｜文件级上传任务' : '任务中心｜线索生成任务'} extra={<span>{isMedia ? `文件级任务，自动刷新中｜进行中 ${activeCount} 个` : '素材入库后自动生成运营待处理任务'}</span>} />
     <DataTable loading={loading} rowKey='id' columns={isMedia ? mediaColumns : operatorColumns} dataSource={data} scroll={{ x: 1500 }} />
     <Drawer open={Boolean(logTask)} onClose={() => { setLogTask(undefined); setLogs([]); }} title={`任务日志：${logTask?.id || ''}`} width={760}>
-      <Typography.Paragraph type='secondary'>每个任务独立日志文件：task-{logTask?.id}.log，2 秒自动刷新。</Typography.Paragraph>
+      <Typography.Paragraph type='secondary'>每个任务独立日志文件：task-{logTask?.id}.log，3 秒自动刷新。</Typography.Paragraph>
       <pre style={{ background: '#0b1220', color: '#d7e2ff', padding: 16, borderRadius: 12, minHeight: 420, whiteSpace: 'pre-wrap' }}>{logs.length ? logs.join('\n') : '暂无日志'}</pre>
     </Drawer>
   </>;
