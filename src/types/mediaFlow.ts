@@ -3,7 +3,7 @@ export type UploadStatus = 'uploading' | 'success' | 'failed' | 'partial_success
 export type ContentPackageStatus = 'pending_upload' | 'uploading' | 'partial_completed' | 'completed' | 'deleted';
 export type TaskType = 'media_upload' | 'operator_lead_generate';
 export type TaskRoleType = 'media' | 'operator';
-export type MediaTaskStatus = 'uploading' | 'success' | 'failed' | 'partial_success' | 'pending_supplement';
+export type MediaTaskStatus = 'created' | 'processing' | 'uploading' | 'success' | 'failed' | 'partial_success' | 'pending_supplement';
 export type OperatorTaskStatus = 'pending' | 'processing' | 'completed' | 'overdue' | 'rejected';
 export type TaskStatus = MediaTaskStatus | OperatorTaskStatus;
 export type LeadStatus = 'unassigned' | 'assigned' | 'following' | 'completed' | 'invalid';
@@ -48,9 +48,20 @@ export interface AssetFile {
 
 export interface Task {
   id: string;
+  title?: string;
   taskType: TaskType;
   roleType: TaskRoleType;
   relatedPackageId: string;
+  topicName?: string;
+  operatorId?: string;
+  operatorName?: string;
+  fullPath?: string;
+  scriptCount?: number;
+  videoCount?: number;
+  imageCount?: number;
+  fileTotal?: number;
+  successCount?: number;
+  failedCount?: number;
   relatedLeadId?: string;
   assigneeId: string;
   assigneeName: string;
