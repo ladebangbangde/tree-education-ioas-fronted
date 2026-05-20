@@ -1,4 +1,4 @@
-import type { AxiosProgressEvent } from 'axios';
+import axios, { type AxiosProgressEvent } from 'axios';
 import { rootClient, unwrapResponse } from './client';
 
 export type UploadTaskFileType = 'image' | 'video' | 'script';
@@ -18,6 +18,15 @@ export interface UploadTaskResponse {
   packageId?: string | number;
 }
 
+export interface UploadTaskPresignResponse {
+  taskId: string | number;
+  bucketName: string;
+  objectKey: string;
+  uploadUrl: string;
+  publicUrl: string;
+  expireSeconds: number;
+}
+
 export interface UploadProgressInfo {
   loaded: number;
   total: number;
@@ -30,16 +39,20 @@ export const uploadTasksApi = {
     const res = await rootClient.post('/upload-tasks', payload);
     return unwrapResponse<UploadTaskResponse>(res.data);
   },
+  async presign(taskId: string | number, payload: Omit<UploadTaskCreatePayload, 'packageId'>) {
+    const res = await rootClient.post(`/upload-tasks/${taskId}/presign`, payload);
+    return unwrapResponse<UploadTaskPresignResponse>(res.data);
+  },
   async uploadFile(taskId: string | number, file: File, fileType: UploadTaskFileType, onProgress?: (info: UploadProgressInfo) => void) {
-    const formData = new FormData();
-    formData.append('file', file);
+    const mimeType = file.type || 'application/octet-stream';
+    const presign = await uploadTasksApi.presign(taskId, { fileName: file.name, fileSize: file.size, mimeType, fileType });
     let lastLoaded = 0;
     let lastTime = Date.now();
     let lastReportTime = 0;
     let lastReportPercent = -1;
-    const res = await rootClient.post(`/upload-tasks/${taskId}/files`, formData, {
-      params: { fileType },
-      headers: { 'Content-Type': 'multipart/form-data' },
+
+    await axios.put(presign.uploadUrl, file, {
+      headers: { 'Content-Type': mimeType },
       timeout: 0,
       onUploadProgress: (event: AxiosProgressEvent) => {
         const loaded = event.loaded || 0;
@@ -47,7 +60,7 @@ export const uploadTasksApi = {
         const now = Date.now();
         const duration = Math.max((now - lastTime) / 1000, 0.001);
         const speed = Math.max((loaded - lastLoaded) / duration, 0);
-        const percent = total ? Math.min(99, Math.round((loaded / total) * 90)) : 0;
+        const percent = total ? Math.min(90, Math.max(1, Math.round((loaded / total) * 90))) : 1;
         lastLoaded = loaded;
         lastTime = now;
         onProgress?.({ loaded, total, percent, speed });
@@ -58,6 +71,17 @@ export const uploadTasksApi = {
           uploadTasksApi.reportProgress(taskId, percent, 'uploading').catch(() => undefined);
         }
       }
+    });
+
+    await uploadTasksApi.reportProgress(taskId, 95, 'processing').catch(() => undefined);
+    const res = await rootClient.post(`/upload-tasks/${taskId}/complete`, {
+      bucketName: presign.bucketName,
+      objectKey: presign.objectKey,
+      publicUrl: presign.publicUrl,
+      fileName: file.name,
+      fileSize: file.size,
+      mimeType,
+      fileType
     });
     return unwrapResponse<UploadTaskResponse>(res.data);
   },
