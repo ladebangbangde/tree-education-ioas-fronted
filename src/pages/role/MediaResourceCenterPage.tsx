@@ -1,4 +1,4 @@
-import { Button, Form, Input, Modal, Select, Space, Upload, message } from 'antd';
+import { Button, Form, Input, Modal, Select, Space, Upload, message, notification } from 'antd';
 import { DownloadOutlined, InboxOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { UploadFile } from 'antd';
@@ -22,10 +22,13 @@ const collectUploadFiles = (value: UploadFile[] | { fileList?: UploadFile[] } | 
   .map(file => file.originFileObj as File | undefined)
   .filter((file): file is File => Boolean(file))
   .map(file => ({ file, fileType: inferUploadTaskFileType(file, fallbackType) }));
+const formatBytes = (value: number) => value >= 1024 * 1024 ? `${(value / 1024 / 1024).toFixed(1)} MB` : `${(value / 1024).toFixed(1)} KB`;
+const formatSpeed = (value: number) => `${formatBytes(value)}/s`;
 
 export default function MediaResourceCenterPage(){
   const navigate = useNavigate();
   const role = useAuthStore(s => s.role);
+  const [api, contextHolder] = notification.useNotification();
   const [packages, setPackages] = useState<ContentPackage[]>([]);
   const [files, setFiles] = useState<AssetFile[]>([]);
   const [operators, setOperators] = useState<OperatorProfile[]>([]);
@@ -108,9 +111,21 @@ export default function MediaResourceCenterPage(){
 
   const uploadOneInBackground = async (packageId: string, file: File, fileType: UploadTaskFileType) => {
     const task = await uploadTasksApi.create({ packageId, fileName: file.name, fileSize: file.size, mimeType: file.type || 'application/octet-stream', fileType });
+    const key = `upload-${task.taskId}`;
     try {
-      await uploadTasksApi.uploadFile(task.taskId, file, fileType);
+      api.open({ key, message: `上传中：${file.name}`, description: '等待上传开始...', duration: 0, placement: 'bottomRight' });
+      await uploadTasksApi.uploadFile(task.taskId, file, fileType, info => {
+        api.open({
+          key,
+          message: `上传中：${file.name}`,
+          description: `${info.percent}% · ${formatBytes(info.loaded)} / ${formatBytes(info.total || file.size)} · ${formatSpeed(info.speed)}`,
+          duration: 0,
+          placement: 'bottomRight'
+        });
+      });
+      api.success({ key, message: `上传完成：${file.name}`, description: '任务已完成，可在任务中心查看记录', duration: 3, placement: 'bottomRight' });
     } catch (error: any) {
+      api.error({ key, message: `上传失败：${file.name}`, description: error?.message || '上传失败', duration: 5, placement: 'bottomRight' });
       await uploadTasksApi.fail(task.taskId, error?.message || '上传失败').catch(() => undefined);
     }
   };
@@ -144,6 +159,7 @@ export default function MediaResourceCenterPage(){
   };
 
   return <>
+    {contextHolder}
     <PageHeader title='媒体资源中心' extra={<Space className='resource-toolbar' size={12}><Input.Search allowClear placeholder='搜索主题 / 运营' onSearch={setQuery} style={{ width: 240 }} /><Select allowClear placeholder='筛选运营' value={operatorId} onChange={setOperatorId} style={{ width: 180 }} options={operators.map(op => ({ value: op.id, label: op.name }))} />{canUseButton(role, 'upload') && <Button icon={<UploadOutlined />} onClick={() => openUpload()}>上传文件</Button>}{canUseButton(role, 'createPackage') && <Button type='primary' icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>新建主题包</Button>}</Space>} />
     <div aria-busy={loading}><AssetFolderBrowser packages={packages} files={files} permissions={permissions} onView={openDetail} onPreview={handlePreview} onDownload={handleDownload} onEdit={pkg => { setEditPackage(pkg); editForm.setFieldsValue({ topicName: pkg.topicName, operatorId: pkg.operatorId }); }} onUpload={openUpload} onDelete={deletePackageWithFiles} onDeleteFile={deleteFileFromPackage} onGenerateLead={setLeadPackage} /></div>
     <ContentPackageDetailDrawer open={Boolean(detailPackage)} onClose={() => setDetail(undefined)} item={detailPackage} files={detailFiles} extraActions={detailPackage && <>{canUseButton(role, 'download') && detailFiles[0] && <Button icon={<DownloadOutlined />} onClick={() => handleDownload(detailFiles[0])}>下载首个素材</Button>}{canUseButton(role, 'upload') && <Button icon={<UploadOutlined />} onClick={() => openUpload(detailPackage)}>上传文件</Button>}{canUseButton(role, 'editOwnContent') && <Button onClick={() => { setEditPackage(detailPackage); editForm.setFieldsValue({ topicName: detailPackage.topicName, operatorId: detailPackage.operatorId }); }}>编辑主题</Button>}{canUseButton(role, 'generateLead') && <Button type='primary' onClick={() => setLeadPackage(detailPackage)}>基于素材生成线索</Button>}</>} canDeleteFile={canUseButton(role, 'deleteOwnContent')} onDeleteFile={deleteFileFromPackage} />
