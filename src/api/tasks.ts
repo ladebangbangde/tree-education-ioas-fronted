@@ -12,5 +12,13 @@ export const tasksApi = {
   async update(id: string, payload: Record<string, unknown>) {
     const res = await client.patch(`/tasks/${id}`, payload);
     return unwrapResponse<any>(res.data);
+  },
+  async cancel(id: string) {
+    const res = await client.post(`/tasks/${id}/cancel`);
+    return unwrapResponse<any>(res.data);
+  },
+  async logs(id: string, lines = 200) {
+    const res = await client.get(`/tasks/${id}/logs`, { params: { lines } });
+    return unwrapResponse<string[]>(res.data);
   }
 };
