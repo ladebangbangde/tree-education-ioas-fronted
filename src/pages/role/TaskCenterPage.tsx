@@ -33,6 +33,7 @@ export default function TaskCenterPage(){
   const [loading, setLoading] = useState(false);
   const [logTask, setLogTask] = useState<Task>();
   const [logs, setLogs] = useState<string[]>([]);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const listLoadingRef = useRef(false);
   const logsLoadingRef = useRef(false);
 
@@ -45,6 +46,7 @@ export default function TaskCenterPage(){
       const rows = (taskRows || []).map(row => adaptTask(row, isMedia ? 'media' : 'operator'));
       const visibleRows = role === 'SUPER_ADMIN' ? rows : rows.filter(row => !userId || !row.assigneeId || row.assigneeId === userId);
       setData(visibleRows);
+      setSelectedRowKeys(prev => prev.filter(key => visibleRows.some(row => String(row.id) === String(key))));
     } finally {
       listLoadingRef.current = false;
       if (!quiet) setLoading(false);
@@ -67,6 +69,16 @@ export default function TaskCenterPage(){
   const cancelTask = async (task: Task) => {
     await tasksApi.cancel(task.id);
     message.success('任务已取消');
+    loadData();
+  };
+  const batchDeleteTasks = async () => {
+    if (!selectedRowKeys.length) {
+      message.warning('请先选择任务');
+      return;
+    }
+    const result = await tasksApi.batchDelete(selectedRowKeys, true);
+    message.success(`已删除 ${result?.deletedTasks ?? selectedRowKeys.length} 个任务，永久删除对象 ${result?.deletedObjects ?? 0} 个`);
+    setSelectedRowKeys([]);
     loadData();
   };
   const refreshLogs = useCallback(async (task: Task, quiet = false) => {
@@ -115,13 +127,23 @@ export default function TaskCenterPage(){
   ];
   const operatorColumns = [...common, { title: '操作', fixed: 'right' as const, render: (_: unknown, r: Task) => <Space>{r.status !== 'completed' && <Button type='link' onClick={() => patchTask(r, 'process')}>去生成线索</Button>}<Button type='link' onClick={() => openLogs(r)}>日志</Button></Space> }];
   const extra = <Space>
-    {role === 'SUPER_ADMIN' && <Radio.Group size='small' value={adminView} onChange={event => { setAdminView(event.target.value); setData([]); }} options={[{ label: '上传任务', value: 'media' }, { label: '运营任务', value: 'operator' }]} />}
+    {role === 'SUPER_ADMIN' && <Radio.Group size='small' value={adminView} onChange={event => { setAdminView(event.target.value); setData([]); setSelectedRowKeys([]); }} options={[{ label: '上传任务', value: 'media' }, { label: '运营任务', value: 'operator' }]} />}
     <span>{isMedia ? `文件级任务，3秒自动刷新｜进行中 ${activeCount} 个` : `运营任务，3秒自动刷新｜进行中 ${activeCount} 个`}</span>
+    <Popconfirm title={`确认永久删除选中的 ${selectedRowKeys.length} 个任务？会同步删除已绑定的 MinIO 对象、资产记录和任务日志。`} disabled={!selectedRowKeys.length} onConfirm={batchDeleteTasks}>
+      <Button danger disabled={!selectedRowKeys.length}>批量删除</Button>
+    </Popconfirm>
   </Space>;
 
   return <>
     <PageHeader title={isMedia ? '任务中心｜文件级上传任务' : '任务中心｜线索生成任务'} extra={extra} />
-    <DataTable loading={loading} rowKey='id' columns={isMedia ? mediaColumns : operatorColumns} dataSource={data} scroll={{ x: 1500 }} />
+    <DataTable
+      loading={loading}
+      rowKey='id'
+      columns={isMedia ? mediaColumns : operatorColumns}
+      dataSource={data}
+      rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys, preserveSelectedRowKeys: true }}
+      scroll={{ x: 1500 }}
+    />
     <Drawer open={Boolean(logTask)} onClose={() => { setLogTask(undefined); setLogs([]); }} title={`任务日志：${logTask?.id || ''}`} width={760}>
       <Typography.Paragraph type='secondary'>每个任务独立日志文件：task-{logTask?.id}.log，3 秒自动刷新。</Typography.Paragraph>
       <pre style={{ background: '#0b1220', color: '#d7e2ff', padding: 16, borderRadius: 12, minHeight: 420, whiteSpace: 'pre-wrap' }}>{logs.length ? logs.join('\n') : '暂无日志'}</pre>
