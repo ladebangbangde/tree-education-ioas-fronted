@@ -3,11 +3,11 @@ import type { DataNode } from 'antd/es/tree';
 import { DeleteOutlined, DownloadOutlined, EditOutlined, FileImageOutlined, FileTextOutlined, FolderFilled, PlayCircleOutlined, UploadOutlined } from '@ant-design/icons';
 import { useMemo, useState } from 'react';
 import type { AssetFile, AssetFileType, ContentPackage } from '@/types/mediaFlow';
+import AssetPreviewThumb from './AssetPreviewThumb';
 
 export type AssetViewType = 'all' | 'script' | 'video' | 'image';
 
 const typeLabel: Record<AssetFileType, string> = { script: '脚本', video: '视频', image: '图片' };
-const typeIcon: Record<AssetFileType, React.ReactNode> = { script: <FileTextOutlined />, video: <PlayCircleOutlined />, image: <FileImageOutlined /> };
 const viewTabs: Array<{ key: AssetViewType; label: string; icon: React.ReactNode }> = [
   { key: 'all', label: '全部', icon: <FolderFilled /> },
   { key: 'script', label: '脚本', icon: <FileTextOutlined /> },
@@ -55,7 +55,7 @@ export function ScriptFileList(props: AssetViewProps) {
       <List.Item.Meta
         avatar={<FileTextOutlined className='asset-list-icon script' />}
         title={file.fileName}
-        description={<Space direction='vertical' size={2}><span>文件类型：{file.mimeType} · {formatSize(file.fileSize)}</span><Typography.Text type='secondary'>文案摘要：{file.previewUrl || '暂未提取摘要，上传后可在此展示脚本内容摘要。'}</Typography.Text></Space>}
+        description={<Space direction='vertical' size={2}><span>文件类型：{file.mimeType} · {formatSize(file.fileSize)}</span><Typography.Text type='secondary'>文案摘要：暂未提取摘要，上传后可在此展示脚本内容摘要。</Typography.Text></Space>}
       />
     </List.Item>}
   />;
@@ -65,10 +65,10 @@ export function VideoFileList(props: AssetViewProps) {
   const videos = props.files.filter(file => file.fileType === 'video');
   return <Row gutter={[16, 16]}>
     {videos.length ? videos.map(file => <Col span={12} key={file.id}>
-      <Card className='video-file-card' cover={<div className='video-thumb'>{file.thumbnailUrl ? <img src={file.thumbnailUrl} /> : <PlayCircleOutlined />}<PlayCircleOutlined className='video-play-mark' /></div>}>
+      <Card className='video-file-card' cover={<AssetPreviewThumb file={file} className='video-thumb' />}>
         <Card.Meta title={file.fileName} description={<Space direction='vertical' size={4}>
           <span>{file.mimeType} · {formatSize(file.fileSize)}</span>
-          <span>时长：待补充 · 画幅：待识别</span>
+          <span>视频截图：由浏览器从已上传视频首帧生成</span>
           <FileActions file={file} {...props} />
         </Space>} />
       </Card>
@@ -80,10 +80,10 @@ export function ImageFileGrid(props: AssetViewProps) {
   const images = props.files.filter(file => file.fileType === 'image');
   return <Row gutter={[16, 16]}>
     {images.length ? images.map(file => <Col span={8} key={file.id}>
-      <Card className='image-file-card' cover={<div className='image-thumb'>{file.thumbnailUrl || file.previewUrl ? <img src={file.thumbnailUrl || file.previewUrl} /> : <FileImageOutlined />}</div>}>
+      <Card className='image-file-card' cover={<AssetPreviewThumb file={file} className='image-thumb' />}>
         <Card.Meta title={file.fileName} description={<Space direction='vertical' size={4}>
           <span>{file.mimeType} · {formatSize(file.fileSize)}</span>
-          <span>尺寸：待识别</span>
+          <span>图片预览：通过后端下载接口鉴权加载</span>
           <FileActions file={file} {...props} />
         </Space>} />
       </Card>
