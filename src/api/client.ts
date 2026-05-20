@@ -24,7 +24,7 @@ function attachInterceptors(instance: ReturnType<typeof axios.create>) {
         localStorage.removeItem('department');
         localStorage.removeItem('userId');
         if (window.location.pathname !== '/login') window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
-      } else if (text) {
+      } else if (text && !axios.isCancel(error)) {
         message.error(text);
       }
       return Promise.reject(error);
@@ -35,6 +35,7 @@ function attachInterceptors(instance: ReturnType<typeof axios.create>) {
 
 const client = attachInterceptors(axios.create({ baseURL: API_BASE_URL, timeout: 15000 }));
 export const rootClient = attachInterceptors(axios.create({ baseURL: API_ROOT_URL, timeout: 15000 }));
+export const transferClient = attachInterceptors(axios.create({ baseURL: API_BASE_URL, timeout: 0 }));
 
 export function unwrapResponse<T>(payload: ApiResponse<T> | T): T {
   if (payload && typeof payload === 'object' && 'data' in payload) return (payload as ApiResponse<T>).data as T;
