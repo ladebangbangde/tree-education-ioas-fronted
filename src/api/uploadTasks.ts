@@ -35,6 +35,8 @@ export const uploadTasksApi = {
     formData.append('file', file);
     let lastLoaded = 0;
     let lastTime = Date.now();
+    let lastReportTime = 0;
+    let lastReportPercent = -1;
     const res = await rootClient.post(`/upload-tasks/${taskId}/files`, formData, {
       params: { fileType },
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -45,11 +47,22 @@ export const uploadTasksApi = {
         const now = Date.now();
         const duration = Math.max((now - lastTime) / 1000, 0.001);
         const speed = Math.max((loaded - lastLoaded) / duration, 0);
+        const percent = total ? Math.min(99, Math.round((loaded / total) * 90)) : 0;
         lastLoaded = loaded;
         lastTime = now;
-        onProgress?.({ loaded, total, percent: total ? Math.round((loaded / total) * 100) : 0, speed });
+        onProgress?.({ loaded, total, percent, speed });
+
+        if (percent !== lastReportPercent && (now - lastReportTime > 1000 || percent >= 90)) {
+          lastReportPercent = percent;
+          lastReportTime = now;
+          uploadTasksApi.reportProgress(taskId, percent, 'uploading').catch(() => undefined);
+        }
       }
     });
+    return unwrapResponse<UploadTaskResponse>(res.data);
+  },
+  async reportProgress(taskId: string | number, progress: number, status = 'uploading') {
+    const res = await rootClient.patch(`/upload-tasks/${taskId}/progress`, { progress, status });
     return unwrapResponse<UploadTaskResponse>(res.data);
   },
   async get(taskId: string | number) {
