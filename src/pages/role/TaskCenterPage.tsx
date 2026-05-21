@@ -1,4 +1,4 @@
-import { Button, Drawer, Progress, Popconfirm, Radio, Space, Tag, Typography, message } from 'antd';
+import { Button, Descriptions, Drawer, Popover, Progress, Popconfirm, Radio, Space, Tag, Typography, message } from 'antd';
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { tasksApi } from '@/api/tasks';
@@ -103,16 +103,44 @@ export default function TaskCenterPage(){
     return () => window.clearInterval(timer);
   }, [logTask, refreshLogs]);
 
+  const renderProgressPopover = (value: number, task: Task) => {
+    const map = isMedia ? mediaStatus : operatorStatus;
+    const statusMeta = map[task.status] || { text: task.status, color: 'default', status: 'normal' as const };
+    const percent = value || 0;
+    const content = <div style={{ width: 330 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <Typography.Text strong>任务进度 #{task.id}</Typography.Text>
+        <Tag color={statusMeta.color}>{statusMeta.text}</Tag>
+      </div>
+      <Progress percent={percent} status={statusMeta.status} />
+      <Descriptions column={1} size='small' colon={false} style={{ marginTop: 8 }}>
+        <Descriptions.Item label='任务'>{task.title || '-'}</Descriptions.Item>
+        <Descriptions.Item label='主题'>{task.topicName || `主题包 #${task.relatedPackageId || '-'}`}</Descriptions.Item>
+        <Descriptions.Item label={isMedia ? '绑定运营' : '负责人'}>{isMedia ? task.operatorName || '-' : task.assigneeName || '-'}</Descriptions.Item>
+        <Descriptions.Item label='开始时间'>{formatDateTime(task.createdAt)}</Descriptions.Item>
+        <Descriptions.Item label='完成时间'>{formatDateTime(task.completedAt)}</Descriptions.Item>
+        {task.errorMessage && <Descriptions.Item label='失败原因'>{task.errorMessage}</Descriptions.Item>}
+      </Descriptions>
+      <Space style={{ marginTop: 10 }}>
+        <Button size='small' type='primary' onClick={() => openLogs(task)}>查看日志</Button>
+        {!isTerminal(task.status) && <Popconfirm title='取消后该任务会进入已取消状态，是否继续？' onConfirm={() => cancelTask(task)}><Button size='small' danger>取消任务</Button></Popconfirm>}
+      </Space>
+    </div>;
+
+    return <Popover trigger='click' placement='left' content={content}>
+      <div style={{ cursor: 'pointer', minWidth: 190 }} title='点击查看任务进度详情'>
+        <Progress percent={percent} size='small' status={statusMeta.status} />
+      </div>
+    </Popover>;
+  };
+
   const common = [
     { title: '任务ID', dataIndex: 'id', width: 90 },
     { title: '主题名称', width: 220, render: (_: unknown, r: Task) => r.topicName || `主题包 #${r.relatedPackageId || '-'}` },
     { title: isMedia ? '上传任务' : '任务名称', width: 280, render: (_: unknown, r: Task) => r.title || '-' },
     { title: isMedia ? '绑定运营' : '负责人', width: 120, render: (_: unknown, r: Task) => isMedia ? r.operatorName || '-' : r.assigneeName || '-' },
     { title: '状态', dataIndex: 'status', width: 110, render: (v: string) => { const map = isMedia ? mediaStatus : operatorStatus; return <Tag color={map[v]?.color}>{map[v]?.text || v}</Tag>; } },
-    { title: '进度', dataIndex: 'progress', width: 220, render: (v: number, r: Task) => {
-      const map = isMedia ? mediaStatus : operatorStatus;
-      return <Progress percent={v || 0} size='small' status={map[r.status]?.status} />;
-    } },
+    { title: '进度', dataIndex: 'progress', width: 220, render: (v: number, r: Task) => renderProgressPopover(v, r) },
     { title: '开始时间', dataIndex: 'createdAt', width: 170, render: formatDateTime },
     { title: '完成时间', dataIndex: 'completedAt', width: 170, render: formatDateTime },
     { title: '失败原因', dataIndex: 'errorMessage', width: 240, render: (v?: string) => v || '-' }
