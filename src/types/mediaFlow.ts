@@ -1,9 +1,9 @@
 export type AssetFileType = 'script' | 'video' | 'image';
 export type UploadStatus = 'uploading' | 'success' | 'failed' | 'partial_success' | 'pending_supplement';
 export type ContentPackageStatus = 'pending_upload' | 'uploading' | 'partial_completed' | 'completed' | 'deleted';
-export type TaskType = 'media_upload' | 'operator_lead_generate';
+export type TaskType = 'package_create' | 'media_upload' | 'operator_lead_generate';
 export type TaskRoleType = 'media' | 'operator';
-export type MediaTaskStatus = 'created' | 'processing' | 'uploading' | 'success' | 'failed' | 'partial_success' | 'pending_supplement';
+export type MediaTaskStatus = 'created' | 'processing' | 'uploading' | 'success' | 'failed' | 'cancelled' | 'partial_success' | 'pending_supplement';
 export type OperatorTaskStatus = 'pending' | 'processing' | 'completed' | 'overdue' | 'rejected';
 export type TaskStatus = MediaTaskStatus | OperatorTaskStatus;
 export type LeadStatus = 'unassigned' | 'assigned' | 'following' | 'completed' | 'invalid';
@@ -68,8 +68,17 @@ export interface Task {
   status: TaskStatus;
   progress: number;
   errorMessage?: string;
+  fileName?: string;
+  fileSize?: number;
+  uploadedBytes?: number;
+  speedBytesPerSecond?: number;
+  averageSpeedBytesPerSecond?: number;
+  partCount?: number;
+  completedPartCount?: number;
+  lastProgressAt?: string;
   createdAt: string;
   completedAt?: string;
+  updatedAt?: string;
 }
 
 export interface Lead {
