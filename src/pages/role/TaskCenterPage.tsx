@@ -21,6 +21,22 @@ const operatorStatus: Record<string, { text: string; color: string; status?: 'su
 
 const formatDateTime = (value?: string) => value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
 const isTerminal = (status: string) => ['success', 'failed', 'cancelled', 'completed', 'rejected'].includes(status);
+const canDeleteTask = (task: Task) => isTerminal(task.status);
+const formatBytes = (value?: number) => {
+  const size = Number(value || 0);
+  if (!size) return '-';
+  if (size >= 1024 * 1024 * 1024) return `${(size / 1024 / 1024 / 1024).toFixed(2)} GB`;
+  if (size >= 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)} MB`;
+  if (size >= 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${size} B`;
+};
+const formatSpeed = (value?: number) => value ? `${formatBytes(value)}/s` : '-';
+const formatDuration = (seconds?: number) => {
+  if (!seconds || !Number.isFinite(seconds) || seconds <= 0) return '-';
+  if (seconds < 60) return `${Math.ceil(seconds)} 秒`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} 分 ${Math.ceil(seconds % 60)} 秒`;
+  return `${Math.floor(seconds / 3600)} 小时 ${Math.floor((seconds % 3600) / 60)} 分`;
+};
 type TaskView = 'media' | 'operator';
 
 export default function TaskCenterPage(){
@@ -46,7 +62,7 @@ export default function TaskCenterPage(){
       const rows = (taskRows || []).map(row => adaptTask(row, isMedia ? 'media' : 'operator'));
       const visibleRows = role === 'SUPER_ADMIN' ? rows : rows.filter(row => !userId || !row.assigneeId || row.assigneeId === userId);
       setData(visibleRows);
-      setSelectedRowKeys(prev => prev.filter(key => visibleRows.some(row => String(row.id) === String(key))));
+      setSelectedRowKeys(prev => prev.filter(key => visibleRows.some(row => String(row.id) === String(key) && canDeleteTask(row))));
     } finally {
       listLoadingRef.current = false;
       if (!quiet) setLoading(false);
@@ -72,12 +88,13 @@ export default function TaskCenterPage(){
     loadData();
   };
   const batchDeleteTasks = async () => {
-    if (!selectedRowKeys.length) {
-      message.warning('请先选择任务');
+    const deletableIds = selectedRowKeys.filter(key => data.some(row => String(row.id) === String(key) && canDeleteTask(row)));
+    if (!deletableIds.length) {
+      message.warning('请先选择已完成、失败或已取消的任务');
       return;
     }
-    const result = await tasksApi.batchDelete(selectedRowKeys, true);
-    message.success(`已删除 ${result?.deletedTasks ?? selectedRowKeys.length} 个任务，永久删除对象 ${result?.deletedObjects ?? 0} 个`);
+    const result = await tasksApi.batchDelete(deletableIds, true);
+    message.success(`已删除 ${result?.deletedTasks ?? deletableIds.length} 个任务，永久删除对象 ${result?.deletedObjects ?? 0} 个`);
     setSelectedRowKeys([]);
     loadData();
   };
@@ -107,7 +124,9 @@ export default function TaskCenterPage(){
     const map = isMedia ? mediaStatus : operatorStatus;
     const statusMeta = map[task.status] || { text: task.status, color: 'default', status: 'normal' as const };
     const percent = value || 0;
-    const content = <div style={{ width: 330 }}>
+    const remainingBytes = Math.max((task.fileSize || 0) - (task.uploadedBytes || 0), 0);
+    const etaSeconds = task.speedBytesPerSecond ? remainingBytes / task.speedBytesPerSecond : undefined;
+    const content = <div style={{ width: 360 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <Typography.Text strong>任务进度 #{task.id}</Typography.Text>
         <Tag color={statusMeta.color}>{statusMeta.text}</Tag>
@@ -116,6 +135,13 @@ export default function TaskCenterPage(){
       <Descriptions column={1} size='small' colon={false} style={{ marginTop: 8 }}>
         <Descriptions.Item label='任务'>{task.title || '-'}</Descriptions.Item>
         <Descriptions.Item label='主题'>{task.topicName || `主题包 #${task.relatedPackageId || '-'}`}</Descriptions.Item>
+        <Descriptions.Item label='文件'>{task.fileName || '-'}</Descriptions.Item>
+        <Descriptions.Item label='已上传'>{task.fileSize ? `${formatBytes(task.uploadedBytes)} / ${formatBytes(task.fileSize)}` : '-'}</Descriptions.Item>
+        <Descriptions.Item label='当前速度'>{formatSpeed(task.speedBytesPerSecond)}</Descriptions.Item>
+        <Descriptions.Item label='平均速度'>{formatSpeed(task.averageSpeedBytesPerSecond)}</Descriptions.Item>
+        <Descriptions.Item label='分片进度'>{task.partCount ? `${task.completedPartCount || 0} / ${task.partCount}` : '-'}</Descriptions.Item>
+        <Descriptions.Item label='预计剩余'>{formatDuration(etaSeconds)}</Descriptions.Item>
+        <Descriptions.Item label='最后进度'>{formatDateTime(task.lastProgressAt || task.updatedAt)}</Descriptions.Item>
         <Descriptions.Item label={isMedia ? '绑定运营' : '负责人'}>{isMedia ? task.operatorName || '-' : task.assigneeName || '-'}</Descriptions.Item>
         <Descriptions.Item label='开始时间'>{formatDateTime(task.createdAt)}</Descriptions.Item>
         <Descriptions.Item label='完成时间'>{formatDateTime(task.completedAt)}</Descriptions.Item>
@@ -141,6 +167,8 @@ export default function TaskCenterPage(){
     { title: isMedia ? '绑定运营' : '负责人', width: 120, render: (_: unknown, r: Task) => isMedia ? r.operatorName || '-' : r.assigneeName || '-' },
     { title: '状态', dataIndex: 'status', width: 110, render: (v: string) => { const map = isMedia ? mediaStatus : operatorStatus; return <Tag color={map[v]?.color}>{map[v]?.text || v}</Tag>; } },
     { title: '进度', dataIndex: 'progress', width: 220, render: (v: number, r: Task) => renderProgressPopover(v, r) },
+    { title: '速度', width: 120, render: (_: unknown, r: Task) => formatSpeed(r.speedBytesPerSecond) },
+    { title: '分片', width: 100, render: (_: unknown, r: Task) => r.partCount ? `${r.completedPartCount || 0}/${r.partCount}` : '-' },
     { title: '开始时间', dataIndex: 'createdAt', width: 170, render: formatDateTime },
     { title: '完成时间', dataIndex: 'completedAt', width: 170, render: formatDateTime },
     { title: '失败原因', dataIndex: 'errorMessage', width: 240, render: (v?: string) => v || '-' }
@@ -157,7 +185,7 @@ export default function TaskCenterPage(){
   const extra = <Space>
     {role === 'SUPER_ADMIN' && <Radio.Group size='small' value={adminView} onChange={event => { setAdminView(event.target.value); setData([]); setSelectedRowKeys([]); }} options={[{ label: '上传任务', value: 'media' }, { label: '运营任务', value: 'operator' }]} />}
     <span>{isMedia ? `文件级任务，3秒自动刷新｜进行中 ${activeCount} 个` : `运营任务，3秒自动刷新｜进行中 ${activeCount} 个`}</span>
-    <Popconfirm title={`确认永久删除选中的 ${selectedRowKeys.length} 个任务？会同步删除已绑定的 MinIO 对象、资产记录和任务日志。`} disabled={!selectedRowKeys.length} onConfirm={batchDeleteTasks}>
+    <Popconfirm title={`确认永久删除选中的 ${selectedRowKeys.length} 个任务？会同步删除已绑定的 MinIO 对象、资产记录和任务日志。进行中任务不可删除。`} disabled={!selectedRowKeys.length} onConfirm={batchDeleteTasks}>
       <Button danger disabled={!selectedRowKeys.length}>批量删除</Button>
     </Popconfirm>
   </Space>;
@@ -169,8 +197,13 @@ export default function TaskCenterPage(){
       rowKey='id'
       columns={isMedia ? mediaColumns : operatorColumns}
       dataSource={data}
-      rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys, preserveSelectedRowKeys: true }}
-      scroll={{ x: 1500 }}
+      rowSelection={{
+        selectedRowKeys,
+        onChange: setSelectedRowKeys,
+        preserveSelectedRowKeys: true,
+        getCheckboxProps: record => ({ disabled: !canDeleteTask(record), title: canDeleteTask(record) ? '可删除' : '进行中任务不可删除' })
+      }}
+      scroll={{ x: 1750 }}
     />
     <Drawer open={Boolean(logTask)} onClose={() => { setLogTask(undefined); setLogs([]); }} title={`任务日志：${logTask?.id || ''}`} width={760}>
       <Typography.Paragraph type='secondary'>每个任务独立日志文件：task-{logTask?.id}.log，3 秒自动刷新。</Typography.Paragraph>
