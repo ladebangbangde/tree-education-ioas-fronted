@@ -1,5 +1,6 @@
 export { default as AppSider } from './common/AppSider';
 export { default as AppHeader } from './common/AppHeader';
+export { default as GlobalUploadPanel } from './common/GlobalUploadPanel';
 export { default as PageHeader } from './common/PageHeader';
 export { default as SearchFilterBar } from './common/SearchFilterBar';
 export { default as StatCard } from './common/StatCard';
