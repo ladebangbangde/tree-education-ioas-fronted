@@ -4,6 +4,7 @@ import type { ApiResponse, PageResult } from '@/types/api';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 export const API_ROOT_URL = import.meta.env.VITE_API_ROOT_URL || 'http://localhost:8080/api';
+const DEFAULT_API_TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT || 60000);
 
 declare module 'axios' {
   export interface AxiosRequestConfig {
@@ -40,8 +41,8 @@ function attachInterceptors(instance: ReturnType<typeof axios.create>) {
   return instance;
 }
 
-const client = attachInterceptors(axios.create({ baseURL: API_BASE_URL, timeout: 15000 }));
-export const rootClient = attachInterceptors(axios.create({ baseURL: API_ROOT_URL, timeout: 15000 }));
+const client = attachInterceptors(axios.create({ baseURL: API_BASE_URL, timeout: DEFAULT_API_TIMEOUT }));
+export const rootClient = attachInterceptors(axios.create({ baseURL: API_ROOT_URL, timeout: DEFAULT_API_TIMEOUT }));
 export const transferClient = attachInterceptors(axios.create({ baseURL: API_BASE_URL, timeout: 0 }));
 
 export function unwrapResponse<T>(payload: ApiResponse<T> | T): T {
