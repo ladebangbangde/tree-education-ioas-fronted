@@ -3,6 +3,10 @@ import type { AssetFile, AssetFileType, ContentPackage, ContentPackageStatus, Le
 
 const stringValue = (...values: unknown[]) => values.find(v => v !== undefined && v !== null && v !== '')?.toString() || '';
 const numberValue = (...values: unknown[]) => Number(values.find(v => v !== undefined && v !== null) ?? 0);
+const optionalNumberValue = (...values: unknown[]) => {
+  const value = values.find(v => v !== undefined && v !== null && v !== '');
+  return value === undefined ? undefined : Number(value);
+};
 
 const normalizeRole = (role?: string, fallback: Role = 'OPERATOR'): Role => {
   const value = (role || fallback).toUpperCase();
@@ -122,8 +126,17 @@ export function adaptTask(dto: any, fallbackRoleType?: TaskRoleType): Task {
     status: stringValue(dto?.status, 'pending') as TaskStatus,
     progress: numberValue(dto?.progress, dto?.percent),
     errorMessage: stringValue(dto?.errorMessage, dto?.error) || undefined,
+    fileName: stringValue(dto?.fileName, dto?.name) || undefined,
+    fileSize: optionalNumberValue(dto?.fileSize, dto?.totalBytes),
+    uploadedBytes: optionalNumberValue(dto?.uploadedBytes, dto?.loadedBytes),
+    speedBytesPerSecond: optionalNumberValue(dto?.speedBytesPerSecond, dto?.speed),
+    averageSpeedBytesPerSecond: optionalNumberValue(dto?.averageSpeedBytesPerSecond, dto?.avgSpeed),
+    partCount: optionalNumberValue(dto?.partCount),
+    completedPartCount: optionalNumberValue(dto?.completedPartCount),
+    lastProgressAt: stringValue(dto?.lastProgressAt) || undefined,
     createdAt: stringValue(dto?.createdAt, dto?.createTime),
-    completedAt: stringValue(dto?.completedAt, dto?.finishTime) || undefined
+    completedAt: stringValue(dto?.completedAt, dto?.finishTime) || undefined,
+    updatedAt: stringValue(dto?.updatedAt, dto?.updateTime) || undefined
   };
 }
 
