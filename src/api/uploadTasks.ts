@@ -77,6 +77,23 @@ interface MultipartSession extends MultipartCreateResponse {
 const DEFAULT_PART_SIZE = 10 * 1024 * 1024;
 const DEFAULT_CONCURRENCY = 3;
 const SESSION_PREFIX = 'ioas.multipart.session.';
+const activeControllers = new Map<string, Set<AbortController>>();
+const userCancelledTasks = new Set<string>();
+
+function taskKey(taskId: string | number) {
+  return String(taskId);
+}
+
+function addController(taskId: string | number, controller: AbortController) {
+  const key = taskKey(taskId);
+  const set = activeControllers.get(key) || new Set<AbortController>();
+  set.add(controller);
+  activeControllers.set(key, set);
+  return () => {
+    set.delete(controller);
+    if (!set.size) activeControllers.delete(key);
+  };
+}
 
 function sessionKey(taskId: string | number) {
   return `${SESSION_PREFIX}${taskId}`;
@@ -151,9 +168,20 @@ export const uploadTasksApi = {
     return unwrapResponse<UploadTaskResponse>(res.data);
   },
   async abortMultipart(taskId: string | number) {
+    uploadTasksApi.cancelActiveUpload(taskId);
     const res = await rootClient.post(`/upload-tasks/${taskId}/multipart/abort`);
     clearSession(taskId);
     return unwrapResponse<UploadTaskResponse>(res.data);
+  },
+  cancelActiveUpload(taskId: string | number) {
+    const key = taskKey(taskId);
+    userCancelledTasks.add(key);
+    const controllers = activeControllers.get(key);
+    controllers?.forEach(controller => controller.abort());
+    activeControllers.delete(key);
+  },
+  hasActiveUpload(taskId: string | number) {
+    return Boolean(activeControllers.get(taskKey(taskId))?.size);
   },
   async uploadFile(taskId: string | number, file: File, fileType: UploadTaskFileType, onProgress?: (info: UploadProgressInfo) => void) {
     return uploadTasksApi.uploadMultipartFile(taskId, file, fileType, onProgress);
@@ -192,6 +220,8 @@ export const uploadTasksApi = {
     return uploadTasksApi.runMultipartTransfer(taskId, file, actualFileType, multipart, completed, onProgress);
   },
   async runMultipartTransfer(taskId: string | number, file: File, fileType: UploadTaskFileType, multipart: MultipartCreateResponse, completedParts: UploadedPart[], onProgress?: (info: UploadProgressInfo) => void) {
+    const key = taskKey(taskId);
+    userCancelledTasks.delete(key);
     const mimeType = file.type || 'application/octet-stream';
     const startedAt = Date.now();
     const removeBeforeUnload = installBeforeUnloadInterrupt(taskId);
@@ -230,25 +260,33 @@ export const uploadTasksApi = {
       while (nextPartNumber <= partCount) {
         const partNumber = nextPartNumber++;
         if (completedPartNumbers.has(partNumber)) continue;
+        if (userCancelledTasks.has(key)) throw new Error('用户取消上传');
         const start = (partNumber - 1) * partSize;
         const end = Math.min(start + partSize, file.size);
         const blob = file.slice(start, end);
         const signed = await uploadTasksApi.signMultipartPart(taskId, { uploadId: multipart.uploadId, bucketName: multipart.bucketName, objectKey: multipart.objectKey, partNumber });
         partLoaded.set(partNumber, 0);
-        const response = await axios.put(signed.url, blob, {
-          timeout: 0,
-          headers: { 'Content-Type': mimeType },
-          onUploadProgress: event => {
-            partLoaded.set(partNumber, event.loaded || 0);
-            report(false).catch(() => undefined);
-          }
-        });
-        const etagHeader = response.headers?.etag || response.headers?.ETag;
-        if (!etagHeader) throw new Error(`分片 ${partNumber} 上传成功但没有返回 ETag`);
-        partLoaded.set(partNumber, blob.size);
-        uploadedParts.push({ partNumber, etag: etagHeader, size: blob.size });
-        completedPartNumbers.add(partNumber);
-        await report(true);
+        const controller = new AbortController();
+        const removeController = addController(taskId, controller);
+        try {
+          const response = await axios.put(signed.url, blob, {
+            timeout: 0,
+            signal: controller.signal,
+            headers: { 'Content-Type': mimeType },
+            onUploadProgress: event => {
+              partLoaded.set(partNumber, event.loaded || 0);
+              report(false).catch(() => undefined);
+            }
+          });
+          const etagHeader = response.headers?.etag || response.headers?.ETag;
+          if (!etagHeader) throw new Error(`分片 ${partNumber} 上传成功但没有返回 ETag`);
+          partLoaded.set(partNumber, blob.size);
+          uploadedParts.push({ partNumber, etag: etagHeader, size: blob.size });
+          completedPartNumbers.add(partNumber);
+          await report(true);
+        } finally {
+          removeController();
+        }
       }
     };
 
@@ -278,10 +316,15 @@ export const uploadTasksApi = {
       clearSession(taskId);
       return result;
     } catch (error) {
+      if (userCancelledTasks.has(key) || axios.isCancel(error)) {
+        clearSession(taskId);
+        throw new Error('用户取消上传');
+      }
       await uploadTasksApi.interruptMultipart(taskId, error instanceof Error ? error.message : '上传中断，可稍后恢复').catch(() => undefined);
       throw error;
     } finally {
       removeBeforeUnload();
+      userCancelledTasks.delete(key);
     }
   },
   async presign(taskId: string | number, payload: Omit<UploadTaskCreatePayload, 'packageId'>) {
