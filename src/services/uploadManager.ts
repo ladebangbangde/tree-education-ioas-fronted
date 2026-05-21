@@ -24,13 +24,27 @@ export interface GlobalUploadItem {
   updatedAt: number;
 }
 
+export interface RecoverableUploadSession {
+  taskId: string;
+  fileName: string;
+  fileSize: number;
+  fileType?: UploadTaskFileType;
+  createdAt?: number;
+}
+
 type Listener = (items: GlobalUploadItem[]) => void;
+
+const SESSION_PREFIX = 'ioas.multipart.session.';
+const envNumber = (key: string, fallback: number) => {
+  const value = Number((import.meta as any).env?.[key]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+};
 
 class UploadManager {
   private items = new Map<string, GlobalUploadItem>();
   private listeners = new Set<Listener>();
   private running = new Set<string>();
-  private maxConcurrentTasks = 2;
+  private maxConcurrentTasks = envNumber('VITE_UPLOAD_MAX_CONCURRENT_TASKS', 2);
 
   subscribe(listener: Listener) {
     this.listeners.add(listener);
@@ -40,6 +54,38 @@ class UploadManager {
 
   snapshot() {
     return [...this.items.values()].sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  setMaxConcurrentTasks(value: number) {
+    this.maxConcurrentTasks = Math.max(1, Math.min(10, Math.floor(value || 1)));
+    this.pump();
+  }
+
+  getMaxConcurrentTasks() {
+    return this.maxConcurrentTasks;
+  }
+
+  listRecoverableSessions(): RecoverableUploadSession[] {
+    const rows: RecoverableUploadSession[] = [];
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(SESSION_PREFIX)) continue;
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      try {
+        const session = JSON.parse(raw);
+        rows.push({
+          taskId: String(session.taskId || key.replace(SESSION_PREFIX, '')),
+          fileName: session.fileName || '未知文件',
+          fileSize: Number(session.fileSize || 0),
+          fileType: session.fileType,
+          createdAt: session.createdAt
+        });
+      } catch {
+        // Ignore malformed legacy session.
+      }
+    }
+    return rows.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }
 
   enqueue(packageId: string | number, file: File, fileType?: UploadTaskFileType) {
