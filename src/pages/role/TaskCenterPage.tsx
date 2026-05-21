@@ -2,6 +2,7 @@ import { Button, Descriptions, Drawer, Popover, Progress, Popconfirm, Radio, Spa
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { tasksApi } from '@/api/tasks';
+import { inferUploadTaskFileType, uploadTasksApi } from '@/api/uploadTasks';
 import { DataTable, PageHeader } from '@/components';
 import { useAuthStore } from '@/store/auth';
 import type { Task } from '@/types/mediaFlow';
@@ -11,6 +12,7 @@ const mediaStatus: Record<string, { text: string; color: string; status?: 'succe
   created: { text: '已创建', color: 'default', status: 'normal' },
   processing: { text: '处理中', color: 'processing', status: 'active' },
   uploading: { text: '上传中', color: 'processing', status: 'active' },
+  interrupted: { text: '上传中断', color: 'orange', status: 'exception' },
   success: { text: '上传成功', color: 'green', status: 'success' },
   failed: { text: '上传失败', color: 'red', status: 'exception' },
   cancelled: { text: '已取消', color: 'default', status: 'exception' },
@@ -22,6 +24,7 @@ const operatorStatus: Record<string, { text: string; color: string; status?: 'su
 const formatDateTime = (value?: string) => value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
 const isTerminal = (status: string) => ['success', 'failed', 'cancelled', 'completed', 'rejected'].includes(status);
 const canDeleteTask = (task: Task) => isTerminal(task.status);
+const canResumeTask = (task: Task) => task.taskType === 'media_upload' && ['interrupted', 'failed'].includes(task.status);
 const formatBytes = (value?: number) => {
   const size = Number(value || 0);
   if (!size) return '-';
@@ -50,6 +53,9 @@ export default function TaskCenterPage(){
   const [logTask, setLogTask] = useState<Task>();
   const [logs, setLogs] = useState<string[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [resumingTaskId, setResumingTaskId] = useState<string>();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingResumeTaskRef = useRef<Task>();
   const listLoadingRef = useRef(false);
   const logsLoadingRef = useRef(false);
 
@@ -86,6 +92,33 @@ export default function TaskCenterPage(){
     await tasksApi.cancel(task.id);
     message.success('任务已取消');
     loadData();
+  };
+  const selectResumeFile = (task: Task) => {
+    pendingResumeTaskRef.current = task;
+    fileInputRef.current?.click();
+  };
+  const handleResumeFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    const task = pendingResumeTaskRef.current;
+    pendingResumeTaskRef.current = undefined;
+    if (!file || !task) return;
+
+    try {
+      setResumingTaskId(task.id);
+      message.loading({ content: `正在恢复上传：${file.name}`, key: `resume-${task.id}`, duration: 0 });
+      await uploadTasksApi.resumeMultipartFile(task.id, file, inferUploadTaskFileType(file), info => {
+        if (info.percent % 10 === 0) loadData(true).catch(() => undefined);
+      });
+      message.success({ content: '续传完成', key: `resume-${task.id}` });
+      await loadData();
+    } catch (error) {
+      const text = error instanceof Error ? error.message : '续传失败';
+      message.error({ content: text, key: `resume-${task.id}` });
+      await loadData();
+    } finally {
+      setResumingTaskId(undefined);
+    }
   };
   const batchDeleteTasks = async () => {
     const deletableIds = selectedRowKeys.filter(key => data.some(row => String(row.id) === String(key) && canDeleteTask(row)));
@@ -149,6 +182,7 @@ export default function TaskCenterPage(){
       </Descriptions>
       <Space style={{ marginTop: 10 }}>
         <Button size='small' type='primary' onClick={() => openLogs(task)}>查看日志</Button>
+        {canResumeTask(task) && <Button size='small' onClick={() => selectResumeFile(task)} loading={resumingTaskId === task.id}>继续上传</Button>}
         {!isTerminal(task.status) && <Popconfirm title='取消后该任务会进入已取消状态，是否继续？' onConfirm={() => cancelTask(task)}><Button size='small' danger>取消任务</Button></Popconfirm>}
       </Space>
     </div>;
@@ -175,8 +209,9 @@ export default function TaskCenterPage(){
   ];
   const mediaColumns = [
     ...common,
-    { title: '操作', fixed: 'right' as const, width: 180, render: (_: unknown, r: Task) => <Space>
+    { title: '操作', fixed: 'right' as const, width: 220, render: (_: unknown, r: Task) => <Space>
       <Button type='link' onClick={() => openLogs(r)}>日志</Button>
+      {canResumeTask(r) && <Button type='link' onClick={() => selectResumeFile(r)} loading={resumingTaskId === r.id}>继续上传</Button>}
       {!isTerminal(r.status) && <Popconfirm title='取消后该任务会进入已取消状态，是否继续？' onConfirm={() => cancelTask(r)}><Button type='link' danger>取消</Button></Popconfirm>}
       {(r.status === 'failed' || r.status === 'cancelled') && <Button type='link' onClick={() => patchTask(r, 'retry')}>重试</Button>}
     </Space> }
@@ -192,6 +227,7 @@ export default function TaskCenterPage(){
 
   return <>
     <PageHeader title={isMedia ? '任务中心｜文件级上传任务' : '任务中心｜线索生成任务'} extra={extra} />
+    <input ref={fileInputRef} type='file' style={{ display: 'none' }} onChange={handleResumeFileSelected} />
     <DataTable
       loading={loading}
       rowKey='id'
@@ -203,7 +239,7 @@ export default function TaskCenterPage(){
         preserveSelectedRowKeys: true,
         getCheckboxProps: record => ({ disabled: !canDeleteTask(record), title: canDeleteTask(record) ? '可删除' : '进行中任务不可删除' })
       }}
-      scroll={{ x: 1750 }}
+      scroll={{ x: 1850 }}
     />
     <Drawer open={Boolean(logTask)} onClose={() => { setLogTask(undefined); setLogs([]); }} title={`任务日志：${logTask?.id || ''}`} width={760}>
       <Typography.Paragraph type='secondary'>每个任务独立日志文件：task-{logTask?.id}.log，3 秒自动刷新。</Typography.Paragraph>
