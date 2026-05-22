@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { tasksApi } from '@/api/tasks';
 import { inferUploadTaskFileType, uploadTasksApi } from '@/api/uploadTasks';
 import { DataTable, PageHeader } from '@/components';
+import { hasRecoverableUploadSession, pruneRecoverableUploadSessions, removeRecoverableUploadSession } from '@/services/uploadSessionGuard';
 import { useAuthStore } from '@/store/auth';
 import type { Task } from '@/types/mediaFlow';
 import { adaptTask } from '@/utils/adapters/mediaFlow';
@@ -24,7 +25,8 @@ const operatorStatus: Record<string, { text: string; color: string; status?: 'su
 const formatDateTime = (value?: string) => value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
 const isTerminal = (status: string) => ['success', 'failed', 'cancelled', 'completed', 'rejected'].includes(status);
 const canDeleteTask = (task: Task) => isTerminal(task.status);
-const canResumeTask = (task: Task) => task.taskType === 'media_upload' && ['interrupted', 'failed'].includes(task.status);
+const canResumeTask = (task: Task) => task.taskType === 'media_upload' && task.status === 'interrupted' && hasRecoverableUploadSession(task.id);
+const canRetryTask = (task: Task) => task.taskType === 'media_upload' && ['failed', 'cancelled'].includes(task.status);
 const formatBytes = (value?: number) => {
   const size = Number(value || 0);
   if (!size) return '-';
@@ -67,6 +69,7 @@ export default function TaskCenterPage(){
       const taskRows = isMedia ? await tasksApi.media({ quiet }) : await tasksApi.operator({ quiet });
       const rows = (taskRows || []).map(row => adaptTask(row, isMedia ? 'media' : 'operator'));
       const visibleRows = role === 'SUPER_ADMIN' ? rows : rows.filter(row => !userId || !row.assigneeId || row.assigneeId === userId);
+      if (isMedia) pruneRecoverableUploadSessions(visibleRows);
       setData(visibleRows);
       setSelectedRowKeys(prev => prev.filter(key => visibleRows.some(row => String(row.id) === String(key) && canDeleteTask(row))));
     } finally {
@@ -85,15 +88,21 @@ export default function TaskCenterPage(){
 
   const patchTask = async (task: Task, action: string) => {
     await tasksApi.update(task.id, { action });
+    if (action === 'retry') removeRecoverableUploadSession(task.id);
     message.success('任务已更新');
     loadData();
   };
   const cancelTask = async (task: Task) => {
     await tasksApi.cancel(task.id);
+    removeRecoverableUploadSession(task.id);
     message.success('任务已取消');
     loadData();
   };
   const selectResumeFile = (task: Task) => {
+    if (!canResumeTask(task)) {
+      message.warning('该任务当前不可恢复上传，请使用重试创建新任务');
+      return;
+    }
     pendingResumeTaskRef.current = task;
     fileInputRef.current?.click();
   };
@@ -110,6 +119,7 @@ export default function TaskCenterPage(){
       await uploadTasksApi.resumeMultipartFile(task.id, file, inferUploadTaskFileType(file), info => {
         if (info.percent % 10 === 0) loadData(true).catch(() => undefined);
       });
+      removeRecoverableUploadSession(task.id);
       message.success({ content: '续传完成', key: `resume-${task.id}` });
       await loadData();
     } catch (error) {
@@ -127,6 +137,7 @@ export default function TaskCenterPage(){
       return;
     }
     const result = await tasksApi.batchDelete(deletableIds, true);
+    deletableIds.forEach(id => removeRecoverableUploadSession(id));
     message.success(`已删除 ${result?.deletedTasks ?? deletableIds.length} 个任务，永久删除对象 ${result?.deletedObjects ?? 0} 个`);
     setSelectedRowKeys([]);
     loadData();
@@ -213,7 +224,7 @@ export default function TaskCenterPage(){
       <Button type='link' onClick={() => openLogs(r)}>日志</Button>
       {canResumeTask(r) && <Button type='link' onClick={() => selectResumeFile(r)} loading={resumingTaskId === r.id}>继续上传</Button>}
       {!isTerminal(r.status) && <Popconfirm title='取消后该任务会进入已取消状态，是否继续？' onConfirm={() => cancelTask(r)}><Button type='link' danger>取消</Button></Popconfirm>}
-      {(r.status === 'failed' || r.status === 'cancelled') && <Button type='link' onClick={() => patchTask(r, 'retry')}>重试</Button>}
+      {canRetryTask(r) && <Button type='link' onClick={() => patchTask(r, 'retry')}>重试</Button>}
     </Space> }
   ];
   const operatorColumns = [...common, { title: '操作', fixed: 'right' as const, render: (_: unknown, r: Task) => <Space>{r.status !== 'completed' && <Button type='link' onClick={() => patchTask(r, 'process')}>去生成线索</Button>}<Button type='link' onClick={() => openLogs(r)}>日志</Button></Space> }];
