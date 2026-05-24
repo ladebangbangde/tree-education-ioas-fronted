@@ -24,5 +24,9 @@ export const leadsApi = {
   async updateStatus(id: string, payload: { status: string }) {
     const res = await client.patch(`/leads/${id}/status`, payload);
     return unwrapResponse<any>(res.data);
+  },
+  async delete(id: string) {
+    const res = await client.delete(`/leads/${id}`);
+    return unwrapResponse<any>(res.data);
   }
 };
