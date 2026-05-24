@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { tasksApi } from '@/api/tasks';
 import { inferUploadTaskFileType, uploadTasksApi } from '@/api/uploadTasks';
 import { DataTable, PageHeader } from '@/components';
-import { hasRecoverableUploadSession, pruneRecoverableUploadSessions, removeRecoverableUploadSession } from '@/services/uploadSessionGuard';
+import { pruneRecoverableUploadSessions, removeRecoverableUploadSession } from '@/services/uploadSessionGuard';
 import { useAuthStore } from '@/store/auth';
 import type { Task } from '@/types/mediaFlow';
 import { adaptTask } from '@/utils/adapters/mediaFlow';
@@ -14,19 +14,24 @@ const mediaStatus: Record<string, { text: string; color: string; status?: 'succe
   processing: { text: '处理中', color: 'processing', status: 'active' },
   uploading: { text: '上传中', color: 'processing', status: 'active' },
   interrupted: { text: '上传中断', color: 'orange', status: 'exception' },
-  success: { text: '上传成功', color: 'green', status: 'success' },
-  failed: { text: '上传失败', color: 'red', status: 'exception' },
+  success: { text: '成功', color: 'green', status: 'success' },
+  failed: { text: '失败', color: 'red', status: 'exception' },
   cancelled: { text: '已取消', color: 'default', status: 'exception' },
   partial_success: { text: '部分成功', color: 'gold', status: 'active' },
   pending_supplement: { text: '待补充素材', color: 'orange', status: 'normal' }
 };
 const operatorStatus: Record<string, { text: string; color: string; status?: 'success' | 'exception' | 'active' | 'normal' }> = { pending: { text: '待处理', color: 'orange' }, processing: { text: '处理中', color: 'processing' }, completed: { text: '已完成', color: 'green', status: 'success' }, overdue: { text: '已逾期', color: 'red', status: 'exception' }, rejected: { text: '已驳回', color: 'volcano', status: 'exception' } };
+const taskTypeMeta: Record<string, { text: string; color: string }> = {
+  package_create: { text: '主题任务创建', color: 'blue' },
+  media_upload: { text: '素材上传任务', color: 'purple' },
+  operator_lead_generate: { text: '线索生成任务', color: 'cyan' }
+};
 
 const formatDateTime = (value?: string) => value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
 const isTerminal = (status: string) => ['success', 'failed', 'cancelled', 'completed', 'rejected'].includes(status);
 const canDeleteTask = (task: Task) => isTerminal(task.status);
-const canResumeTask = (task: Task) => task.taskType === 'media_upload' && task.status === 'interrupted' && hasRecoverableUploadSession(task.id);
-const canRetryTask = (task: Task) => task.taskType === 'media_upload' && ['failed', 'cancelled'].includes(task.status);
+const hasServerRecoverableSnapshot = (task: Task) => Boolean(task.partCount || task.completedPartCount || task.uploadedBytes || task.fileSize);
+const canResumeTask = (task: Task) => task.taskType === 'media_upload' && ['interrupted', 'failed'].includes(task.status) && hasServerRecoverableSnapshot(task);
 const formatBytes = (value?: number) => {
   const size = Number(value || 0);
   if (!size) return '-';
@@ -88,7 +93,6 @@ export default function TaskCenterPage(){
 
   const patchTask = async (task: Task, action: string) => {
     await tasksApi.update(task.id, { action });
-    if (action === 'retry') removeRecoverableUploadSession(task.id);
     message.success('任务已更新');
     loadData();
   };
@@ -100,7 +104,7 @@ export default function TaskCenterPage(){
   };
   const selectResumeFile = (task: Task) => {
     if (!canResumeTask(task)) {
-      message.warning('该任务当前不可恢复上传，请使用重试创建新任务');
+      message.warning('该任务当前没有可续传的服务端断点，请重新从主题包里上传文件');
       return;
     }
     pendingResumeTaskRef.current = task;
@@ -115,12 +119,12 @@ export default function TaskCenterPage(){
 
     try {
       setResumingTaskId(task.id);
-      message.loading({ content: `正在恢复上传：${file.name}`, key: `resume-${task.id}`, duration: 0 });
+      message.loading({ content: `正在从服务端断点恢复上传：${file.name}`, key: `resume-${task.id}`, duration: 0 });
       await uploadTasksApi.resumeMultipartFile(task.id, file, inferUploadTaskFileType(file), info => {
         if (info.percent % 10 === 0) loadData(true).catch(() => undefined);
       });
       removeRecoverableUploadSession(task.id);
-      message.success({ content: '续传完成', key: `resume-${task.id}` });
+      message.success({ content: '断点续传完成', key: `resume-${task.id}` });
       await loadData();
     } catch (error) {
       const text = error instanceof Error ? error.message : '续传失败';
@@ -164,6 +168,11 @@ export default function TaskCenterPage(){
     return () => window.clearInterval(timer);
   }, [logTask, refreshLogs]);
 
+  const renderTaskTypeTag = (task: Task) => {
+    const meta = taskTypeMeta[task.taskType] || { text: task.taskType || '任务', color: 'default' };
+    return <Tag color={meta.color}>{meta.text}</Tag>;
+  };
+
   const renderProgressPopover = (value: number, task: Task) => {
     const map = isMedia ? mediaStatus : operatorStatus;
     const statusMeta = map[task.status] || { text: task.status, color: 'default', status: 'normal' as const };
@@ -173,7 +182,7 @@ export default function TaskCenterPage(){
     const content = <div style={{ width: 360 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <Typography.Text strong>任务进度 #{task.id}</Typography.Text>
-        <Tag color={statusMeta.color}>{statusMeta.text}</Tag>
+        <Space size={6}>{renderTaskTypeTag(task)}<Tag color={statusMeta.color}>{statusMeta.text}</Tag></Space>
       </div>
       <Progress percent={percent} status={statusMeta.status} />
       <Descriptions column={1} size='small' colon={false} style={{ marginTop: 8 }}>
@@ -193,7 +202,7 @@ export default function TaskCenterPage(){
       </Descriptions>
       <Space style={{ marginTop: 10 }}>
         <Button size='small' type='primary' onClick={() => openLogs(task)}>查看日志</Button>
-        {canResumeTask(task) && <Button size='small' onClick={() => selectResumeFile(task)} loading={resumingTaskId === task.id}>继续上传</Button>}
+        {canResumeTask(task) && <Button size='small' onClick={() => selectResumeFile(task)} loading={resumingTaskId === task.id}>断点续传</Button>}
         {!isTerminal(task.status) && <Popconfirm title='取消后该任务会进入已取消状态，是否继续？' onConfirm={() => cancelTask(task)}><Button size='small' danger>取消任务</Button></Popconfirm>}
       </Space>
     </div>;
@@ -207,8 +216,9 @@ export default function TaskCenterPage(){
 
   const common = [
     { title: '任务ID', dataIndex: 'id', width: 90 },
+    { title: '任务标签', width: 140, render: (_: unknown, r: Task) => renderTaskTypeTag(r) },
     { title: '主题名称', width: 220, render: (_: unknown, r: Task) => r.topicName || `主题包 #${r.relatedPackageId || '-'}` },
-    { title: isMedia ? '上传任务' : '任务名称', width: 280, render: (_: unknown, r: Task) => r.title || '-' },
+    { title: isMedia ? '任务名称' : '任务名称', width: 280, render: (_: unknown, r: Task) => r.title || '-' },
     { title: isMedia ? '绑定运营' : '负责人', width: 120, render: (_: unknown, r: Task) => isMedia ? r.operatorName || '-' : r.assigneeName || '-' },
     { title: '状态', dataIndex: 'status', width: 110, render: (v: string) => { const map = isMedia ? mediaStatus : operatorStatus; return <Tag color={map[v]?.color}>{map[v]?.text || v}</Tag>; } },
     { title: '进度', dataIndex: 'progress', width: 220, render: (v: number, r: Task) => renderProgressPopover(v, r) },
@@ -222,22 +232,21 @@ export default function TaskCenterPage(){
     ...common,
     { title: '操作', fixed: 'right' as const, width: 220, render: (_: unknown, r: Task) => <Space>
       <Button type='link' onClick={() => openLogs(r)}>日志</Button>
-      {canResumeTask(r) && <Button type='link' onClick={() => selectResumeFile(r)} loading={resumingTaskId === r.id}>继续上传</Button>}
+      {canResumeTask(r) && <Button type='link' onClick={() => selectResumeFile(r)} loading={resumingTaskId === r.id}>断点续传</Button>}
       {!isTerminal(r.status) && <Popconfirm title='取消后该任务会进入已取消状态，是否继续？' onConfirm={() => cancelTask(r)}><Button type='link' danger>取消</Button></Popconfirm>}
-      {canRetryTask(r) && <Button type='link' onClick={() => patchTask(r, 'retry')}>重试</Button>}
     </Space> }
   ];
   const operatorColumns = [...common, { title: '操作', fixed: 'right' as const, render: (_: unknown, r: Task) => <Space>{r.status !== 'completed' && <Button type='link' onClick={() => patchTask(r, 'process')}>去生成线索</Button>}<Button type='link' onClick={() => openLogs(r)}>日志</Button></Space> }];
   const extra = <Space>
-    {role === 'SUPER_ADMIN' && <Radio.Group size='small' value={adminView} onChange={event => { setAdminView(event.target.value); setData([]); setSelectedRowKeys([]); }} options={[{ label: '上传任务', value: 'media' }, { label: '运营任务', value: 'operator' }]} />}
-    <span>{isMedia ? `文件级任务，3秒自动刷新｜进行中 ${activeCount} 个` : `运营任务，3秒自动刷新｜进行中 ${activeCount} 个`}</span>
+    {role === 'SUPER_ADMIN' && <Radio.Group size='small' value={adminView} onChange={event => { setAdminView(event.target.value); setData([]); setSelectedRowKeys([]); }} options={[{ label: '媒体任务', value: 'media' }, { label: '运营任务', value: 'operator' }]} />}
+    <span>{isMedia ? `主题创建 / 素材上传任务，3秒自动刷新｜进行中 ${activeCount} 个` : `运营任务，3秒自动刷新｜进行中 ${activeCount} 个`}</span>
     <Popconfirm title={`确认永久删除选中的 ${selectedRowKeys.length} 个任务？会同步删除已绑定的 MinIO 对象、资产记录和任务日志。进行中任务不可删除。`} disabled={!selectedRowKeys.length} onConfirm={batchDeleteTasks}>
       <Button danger disabled={!selectedRowKeys.length}>批量删除</Button>
     </Popconfirm>
   </Space>;
 
   return <>
-    <PageHeader title={isMedia ? '任务中心｜文件级上传任务' : '任务中心｜线索生成任务'} extra={extra} />
+    <PageHeader title={isMedia ? '任务中心｜媒体任务' : '任务中心｜线索生成任务'} extra={extra} />
     <input ref={fileInputRef} type='file' style={{ display: 'none' }} onChange={handleResumeFileSelected} />
     <DataTable
       loading={loading}
@@ -250,7 +259,7 @@ export default function TaskCenterPage(){
         preserveSelectedRowKeys: true,
         getCheckboxProps: record => ({ disabled: !canDeleteTask(record), title: canDeleteTask(record) ? '可删除' : '进行中任务不可删除' })
       }}
-      scroll={{ x: 1850 }}
+      scroll={{ x: 1950 }}
     />
     <Drawer open={Boolean(logTask)} onClose={() => { setLogTask(undefined); setLogs([]); }} title={`任务日志：${logTask?.id || ''}`} width={760}>
       <Typography.Paragraph type='secondary'>每个任务独立日志文件：task-{logTask?.id}.log，3 秒自动刷新。</Typography.Paragraph>
