@@ -12,6 +12,13 @@ import type { AppMenuItem } from '@/types';
 
 export const menuConfig: AppMenuItem[] = [
   {
+    key: 'profile-settings',
+    label: '个人信息设置',
+    path: '/profile/settings',
+    icon: <UserOutlined />,
+    roles: ['SUPER_ADMIN', 'MEDIA', 'OPERATOR', 'CONSULTANT']
+  },
+  {
     key: 'media-content',
     label: '内容管理',
     path: '/media/content',
@@ -60,7 +67,7 @@ export const menuConfig: AppMenuItem[] = [
     roles: ['SUPER_ADMIN', 'CONSULTANT'],
     children: [
       { key: 'leads-list', label: '线索列表', path: '/leads/list' },
-      { key: 'leads-assign', label: '线索分配', path: '/leads/assign' },
+      { key: 'leads-assign', label: '线索转让', path: '/leads/assign' },
       { key: 'leads-follow', label: '跟进记录', path: '/leads/follow' }
     ]
   },
