@@ -1,7 +1,6 @@
-import { Button, DatePicker, Form, Input, Modal, Popconfirm, Select, Space, message } from 'antd';
+import { Button, Card, DatePicker, Form, Input, Modal, Popconfirm, Select, Space, Table, Tabs, message } from 'antd';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { DataTable, PageHeader, SearchFilterBar, StatusTag } from '@/components';
 import { leadsApi } from '@/api/leads';
 import { useAuthStore } from '@/store/auth';
@@ -25,6 +24,19 @@ type LeadRow = {
   remark?: string;
 };
 
+type ConsultantOption = { id: number | string; username?: string; displayName?: string };
+type TransferRequest = {
+  id: number | string;
+  leadId: number | string;
+  leadNo?: string;
+  studentName?: string;
+  fromConsultantName?: string;
+  toConsultantName?: string;
+  reason?: string;
+  status?: string;
+  requestedAt?: string;
+};
+
 const statusText: Record<string, string> = {
   unassigned: '未分配',
   assigned: '已分配',
@@ -33,10 +45,16 @@ const statusText: Record<string, string> = {
   closed: '已关闭'
 };
 
+const transferStatusText: Record<string, string> = {
+  PENDING: '待确认',
+  ACCEPTED: '已同意',
+  REJECTED: '已拒绝',
+  CANCELLED: '已取消'
+};
+
 const fmt = (value?: string) => value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
 
 export default function LeadsListPage() {
-  const nav = useNavigate();
   const role = useAuthStore(s => s.role);
   const isConsultant = role === 'CONSULTANT';
   const [rows, setRows] = useState<LeadRow[]>([]);
@@ -44,7 +62,12 @@ export default function LeadsListPage() {
   const [keyword, setKeyword] = useState('');
   const [status, setStatus] = useState<string>();
   const [editing, setEditing] = useState<LeadRow>();
+  const [transferring, setTransferring] = useState<LeadRow>();
+  const [consultants, setConsultants] = useState<ConsultantOption[]>([]);
+  const [receivedTransfers, setReceivedTransfers] = useState<TransferRequest[]>([]);
+  const [loadingTransfers, setLoadingTransfers] = useState(false);
   const [editForm] = Form.useForm();
+  const [transferForm] = Form.useForm();
 
   const load = async () => {
     setLoading(true);
@@ -58,7 +81,25 @@ export default function LeadsListPage() {
     }
   };
 
-  useEffect(() => { load().catch(() => undefined); }, [role]);
+  const loadTransfers = async () => {
+    if (!isConsultant) return;
+    setLoadingTransfers(true);
+    try {
+      const [targetConsultants, transfers] = await Promise.all([
+        leadsApi.consultants(),
+        leadsApi.transferRequests('received')
+      ]);
+      setConsultants(targetConsultants || []);
+      setReceivedTransfers((transfers || []).filter((item: TransferRequest) => item.status === 'PENDING'));
+    } finally {
+      setLoadingTransfers(false);
+    }
+  };
+
+  useEffect(() => {
+    load().catch(() => undefined);
+    loadTransfers().catch(() => undefined);
+  }, [role]);
 
   const openEdit = (record: LeadRow) => {
     setEditing(record);
@@ -71,6 +112,11 @@ export default function LeadsListPage() {
     });
   };
 
+  const openTransfer = (record: LeadRow) => {
+    setTransferring(record);
+    transferForm.resetFields();
+  };
+
   const submitEdit = async () => {
     if (!editing) return;
     const values = await editForm.validateFields();
@@ -78,6 +124,27 @@ export default function LeadsListPage() {
     message.success('线索已修改');
     setEditing(undefined);
     await load();
+  };
+
+  const submitTransfer = async () => {
+    if (!transferring) return;
+    const values = await transferForm.validateFields();
+    await leadsApi.createTransferRequest(String(transferring.id), values);
+    message.success('转让申请已发送，等待对方顾问确认');
+    setTransferring(undefined);
+    await loadTransfers();
+  };
+
+  const acceptTransfer = async (record: TransferRequest) => {
+    await leadsApi.acceptTransferRequest(String(record.id));
+    message.success('已接收线索');
+    await Promise.all([load(), loadTransfers()]);
+  };
+
+  const rejectTransfer = async (record: TransferRequest) => {
+    await leadsApi.rejectTransferRequest(String(record.id));
+    message.success('已拒绝转让');
+    await loadTransfers();
   };
 
   const deleteLead = async (record: LeadRow) => {
@@ -99,9 +166,10 @@ export default function LeadsListPage() {
       {
         title: '操作',
         fixed: 'right' as const,
-        width: 160,
+        width: isConsultant ? 210 : 160,
         render: (_: unknown, r: LeadRow) => <Space>
           <Button type='link' onClick={() => openEdit(r)}>修改</Button>
+          {isConsultant && <Button type='link' onClick={() => openTransfer(r)}>转让</Button>}
           <Popconfirm title='确认删除这条线索？这是真实数据删除，不可恢复。' onConfirm={() => deleteLead(r)}>
             <Button type='link' danger>删除</Button>
           </Popconfirm>
@@ -114,8 +182,28 @@ export default function LeadsListPage() {
     return base;
   }, [isConsultant]);
 
-  return <>
-    <PageHeader title={isConsultant ? '我的线索' : '线索中心 / 线索列表'} />
+  const transferColumns = [
+    { title: '线索编号', dataIndex: 'leadNo', render: (v: string, r: TransferRequest) => v || r.leadId },
+    { title: '学生姓名', dataIndex: 'studentName', render: (v: string) => v || '-' },
+    { title: '转出顾问', dataIndex: 'fromConsultantName', render: (v: string) => v || '-' },
+    { title: '申请理由', dataIndex: 'reason', render: (v: string) => v || '-' },
+    { title: '申请时间', dataIndex: 'requestedAt', render: fmt },
+    { title: '状态', dataIndex: 'status', render: (v: string) => <StatusTag status={transferStatusText[v] || v || '未知'} /> },
+    {
+      title: '操作',
+      width: 150,
+      render: (_: unknown, r: TransferRequest) => <Space>
+        <Popconfirm title='确认接收这条线索？接收后线索会转到你名下。' onConfirm={() => acceptTransfer(r)}>
+          <Button type='link'>同意</Button>
+        </Popconfirm>
+        <Popconfirm title='确认拒绝这条转让申请？拒绝后线索仍归原顾问。' onConfirm={() => rejectTransfer(r)}>
+          <Button type='link' danger>拒绝</Button>
+        </Popconfirm>
+      </Space>
+    }
+  ];
+
+  const listContent = <>
     <SearchFilterBar>
       <Form layout='inline' style={{ gap: 16, rowGap: 16 }}>
         <Form.Item label='关键词'><Input value={keyword} onChange={event => setKeyword(event.target.value)} placeholder='姓名/手机号/编号' /></Form.Item>
@@ -127,6 +215,14 @@ export default function LeadsListPage() {
       </Form>
     </SearchFilterBar>
     <DataTable rowKey='id' columns={columns as any} dataSource={rows} loading={loading} pagination={{ total: rows.length, showSizeChanger: true }} />
+  </>;
+
+  return <>
+    <PageHeader title={isConsultant ? '我的线索' : '线索中心 / 线索列表'} />
+    {isConsultant ? <Tabs items={[
+      { key: 'mine', label: '我的线索', children: listContent },
+      { key: 'transfer', label: `待我确认${receivedTransfers.length ? ` (${receivedTransfers.length})` : ''}`, children: <Card><Table rowKey='id' columns={transferColumns as any} dataSource={receivedTransfers} loading={loadingTransfers} pagination={false} /></Card> }
+    ]} /> : listContent}
     <Modal title='修改线索' open={Boolean(editing)} onCancel={() => setEditing(undefined)} onOk={submitEdit} okText='保存' cancelText='取消'>
       <Form form={editForm} layout='vertical'>
         <Form.Item label='状态' name='status'><Select options={[{ label: '已分配', value: 'assigned' }, { label: '跟进中', value: 'following' }, { label: '已转化', value: 'converted' }, { label: '已关闭', value: 'closed' }]} /></Form.Item>
@@ -134,6 +230,17 @@ export default function LeadsListPage() {
         <Form.Item label='微信' name='wechat'><Input /></Form.Item>
         <Form.Item label='预算' name='budget'><Input /></Form.Item>
         <Form.Item label='备注' name='remark'><Input.TextArea rows={4} /></Form.Item>
+      </Form>
+    </Modal>
+    <Modal title='转让线索' open={Boolean(transferring)} onCancel={() => setTransferring(undefined)} onOk={submitTransfer} okText='发送转让申请' cancelText='取消'>
+      <Form form={transferForm} layout='vertical'>
+        <Form.Item label='当前线索'><Input value={transferring?.studentName || transferring?.leadNo || ''} disabled /></Form.Item>
+        <Form.Item label='目标顾问' name='toConsultantId' rules={[{ required: true, message: '请选择目标顾问' }]}>
+          <Select placeholder='请选择要转让给哪位顾问' options={consultants.map(item => ({ label: item.displayName || item.username || item.id, value: item.id }))} />
+        </Form.Item>
+        <Form.Item label='转让理由' name='reason'>
+          <Input.TextArea rows={4} placeholder='例如：学生目标区域更适合该顾问跟进' />
+        </Form.Item>
       </Form>
     </Modal>
   </>;
