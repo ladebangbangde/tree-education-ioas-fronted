@@ -19,6 +19,12 @@ export const profileApi = {
     const res = await client.put('/profile/consultant/public-profile', payload);
     return unwrapResponse<any>(res.data);
   },
+  async uploadAvatar(file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await client.post('/profile/consultant/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return unwrapResponse<any>(res.data);
+  },
   async uploadQr(file: File) {
     const form = new FormData();
     form.append('file', file);
