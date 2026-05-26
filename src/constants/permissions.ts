@@ -22,7 +22,7 @@ export const getDefaultRoute = (role: Role) => defaultRouteByRole[role];
 export type ButtonAction = 'view'|'edit'|'export'|'assign'|'batch'|'publish'|'preview'|'permission'|'delete'|'resetPassword'|'follow'|'convert'|'highIntent'|'new'|'file'|'log'|'config'|'stage'|'advisor'|'offline'|'more'|'retry'|'generateLead'|'upload'|'download'|'bindOperator'|'restore'|'createPackage'|'editOwnContent'|'deleteOwnContent';
 
 const allRoutes = [
-  '/dashboard',
+  '/dashboard','/profile/settings',
   '/media/content','/operator/leads','/media-assets','/tasks','/reports',
   '/leads/list','/leads/detail/:id','/leads/assign','/leads/follow',
   '/students/list','/students/detail/:id',
@@ -35,9 +35,9 @@ const allRoutes = [
 
 export const rolePageMatrix: Record<Role, string[]> = {
   SUPER_ADMIN: [...allRoutes],
-  MEDIA: ['/media/content','/media-assets','/tasks','/reports'],
-  OPERATOR: ['/operator/leads','/media-assets','/tasks','/reports'],
-  CONSULTANT: ['/dashboard','/leads/list','/leads/detail/:id','/leads/assign','/leads/follow','/students/list','/students/detail/:id','/applications/kanban','/applications/detail/:id','/applications/stage/:stage','/applications/materials','/applications/offers','/applications/visa','/knowledge/library','/messages/tasks']
+  MEDIA: ['/profile/settings','/media/content','/media-assets','/tasks','/reports'],
+  OPERATOR: ['/profile/settings','/operator/leads','/media-assets','/tasks','/reports'],
+  CONSULTANT: ['/profile/settings','/tasks','/dashboard','/leads/list','/leads/detail/:id','/leads/assign','/leads/follow','/students/list','/students/detail/:id','/applications/kanban','/applications/detail/:id','/applications/stage/:stage','/applications/materials','/applications/offers','/applications/visa','/knowledge/library']
 };
 
 export const routePermissionMap = allRoutes.reduce((acc, route) => {
@@ -49,7 +49,7 @@ const allActions: ButtonAction[] = ['view','edit','export','assign','batch','pub
 export const roleButtonMatrix: Record<Role, ButtonAction[]> = {
   SUPER_ADMIN: allActions,
   MEDIA: ['view','new','createPackage','upload','download','preview','edit','editOwnContent','delete','deleteOwnContent','bindOperator','retry','restore','file'],
-  CONSULTANT: ['view','edit','assign','follow','file','log','stage','advisor','more'],
+  CONSULTANT: ['view','edit','assign','follow','file','log','stage','advisor','more','upload'],
   OPERATOR: ['view','download','preview','file','log','generateLead','more']
 };
 
