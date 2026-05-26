@@ -42,12 +42,12 @@ const formatBytes = (value?: number) => {
   if (size >= 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${size} B`;
 };
-const formatSpeed = (value?: number) => value ? `${formatBytes(value)}/s` : '-';
 type TaskView = 'media' | 'operator' | 'consultant';
 
 export default function TaskCenterPage(){
   const role = useAuthStore(s => s.role);
   const userId = useAuthStore(s => s.id);
+  const token = useAuthStore(s => s.token);
   const [adminView, setAdminView] = useState<TaskView>('media');
   const view: TaskView = role === 'OPERATOR' ? 'operator' : role === 'CONSULTANT' ? 'consultant' : role === 'SUPER_ADMIN' ? adminView : 'media';
   const isMedia = view === 'media';
@@ -60,22 +60,34 @@ export default function TaskCenterPage(){
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const listLoadingRef = useRef(false);
   const logsLoadingRef = useRef(false);
+  const scopeRef = useRef('');
+  const authScope = `${token || 'no-token'}:${role}:${userId || 'anonymous'}:${view}`;
+
+  useEffect(() => {
+    scopeRef.current = authScope;
+    setData([]);
+    setSelectedRowKeys([]);
+    setLogTask(undefined);
+    setLogs([]);
+  }, [authScope]);
 
   const loadData = useCallback(async (quiet = false) => {
     if (listLoadingRef.current) return;
+    const requestScope = authScope;
     listLoadingRef.current = true;
     if (!quiet) setLoading(true);
     try {
       const taskRows = isConsultant ? await tasksApi.consultant({ quiet }) : isMedia ? await tasksApi.media({ quiet }) : await tasksApi.operator({ quiet });
+      if (scopeRef.current !== requestScope) return;
       const rows = (taskRows || []).map(row => adaptTask(row, view === 'operator' ? 'operator' : 'media'));
-      const visibleRows = role === 'SUPER_ADMIN' ? rows : rows.filter(row => !userId || !row.assigneeId || row.assigneeId === userId);
+      const visibleRows = role === 'SUPER_ADMIN' ? rows : rows.filter(row => userId && row.assigneeId === userId);
       setData(visibleRows);
       setSelectedRowKeys(prev => prev.filter(key => visibleRows.some(row => String(row.id) === String(key) && canDeleteTask(row))));
     } finally {
       listLoadingRef.current = false;
-      if (!quiet) setLoading(false);
+      if (!quiet && scopeRef.current === requestScope) setLoading(false);
     }
-  }, [isConsultant, isMedia, role, userId, view]);
+  }, [authScope, isConsultant, isMedia, role, userId, view]);
 
   useEffect(() => { loadData().catch(() => undefined); }, [loadData]);
   useEffect(() => {
@@ -110,10 +122,11 @@ export default function TaskCenterPage(){
   };
   const refreshLogs = useCallback(async (task: Task, quiet = false) => {
     if (logsLoadingRef.current) return;
+    const requestScope = scopeRef.current;
     logsLoadingRef.current = true;
     try {
       const rows = await tasksApi.logs(task.id, 300, { quiet });
-      setLogs(rows || []);
+      if (scopeRef.current === requestScope) setLogs(rows || []);
     } finally {
       logsLoadingRef.current = false;
     }
