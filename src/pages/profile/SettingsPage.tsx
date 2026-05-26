@@ -14,6 +14,7 @@ const regionOptions = [
 ];
 
 const statusText: Record<string, string> = { PENDING: '待审批', APPROVED: '已通过', REJECTED: '已拒绝' };
+const PUBLIC_BIO_MAX_LENGTH = 80;
 
 export default function ProfileSettingsPage() {
   const role = useAuthStore(s => s.role);
@@ -24,12 +25,14 @@ export default function ProfileSettingsPage() {
   const [myRequests, setMyRequests] = useState<any[]>([]);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [form] = Form.useForm();
+  const [profileForm] = Form.useForm();
 
   const load = async () => {
     setLoading(true);
     try {
       const current = await profileApi.me();
       setMe(current);
+      profileForm.setFieldsValue({ publicBio: current?.publicBio || '' });
       if (isConsultant) setMyRequests(await profileApi.myRegionChangeRequests());
       if (isAdmin) setPendingRequests(await profileApi.pendingRegionChangeRequests());
     } finally {
@@ -38,6 +41,13 @@ export default function ProfileSettingsPage() {
   };
 
   useEffect(() => { load().catch(() => undefined); }, [role]);
+
+  const savePublicProfile = async () => {
+    const values = await profileForm.validateFields();
+    await profileApi.updatePublicProfile({ publicBio: values.publicBio || '' });
+    message.success('个人简介已保存，官网顾问展示会读取这里的内容');
+    await load();
+  };
 
   const uploadQr = async (file: File) => {
     await profileApi.uploadQr(file);
@@ -94,6 +104,24 @@ export default function ProfileSettingsPage() {
         { label: '顾问标题', children: me?.publicTitle || '-' }
       ]} />
     </Card>
+
+    {isConsultant && <Card title='官网展示信息' style={{ marginTop: 16 }}>
+      <Descriptions bordered column={2} size='small' items={[
+        { label: '官网展示头像', children: me?.consultantAvatarPublicUrl ? <Image src={me.consultantAvatarPublicUrl} width={96} /> : '-' },
+        { label: '官网展示标题', children: me?.publicTitle || '-' }
+      ]} />
+      <Form form={profileForm} layout='vertical' style={{ marginTop: 16 }}>
+        <Form.Item
+          label='个人简介'
+          name='publicBio'
+          rules={[{ max: PUBLIC_BIO_MAX_LENGTH, message: `个人简介最多${PUBLIC_BIO_MAX_LENGTH}个字` }]}
+          extra='这段内容会显示在官网顾问团队区域，建议保持和当前官网顾问介绍相近的长度。'
+        >
+          <Input.TextArea rows={3} maxLength={PUBLIC_BIO_MAX_LENGTH} showCount placeholder='请输入官网展示用的个人简介' />
+        </Form.Item>
+        <Button type='primary' onClick={savePublicProfile}>保存个人简介</Button>
+      </Form>
+    </Card>}
 
     {isConsultant && <Card title='企业微信二维码' style={{ marginTop: 16 }} extra={<Upload accept='image/*' showUploadList={false} beforeUpload={uploadQr as any}><Button icon={<UploadOutlined />}>上传/替换二维码</Button></Upload>}>
       {me?.consultantQrPublicUrl ? <Space align='start'><Image src={me.consultantQrPublicUrl} width={180} /><div>官网学生提交咨询后，会展示这个企业微信二维码。</div></Space> : <div>暂未上传二维码。请上传自己的企业微信二维码。</div>}
