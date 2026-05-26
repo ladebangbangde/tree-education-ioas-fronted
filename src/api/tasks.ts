@@ -9,6 +9,10 @@ export const tasksApi = {
     const res = await client.get('/tasks/operator', { params: { pageNum: 1, pageSize: 500 }, silent: options?.quiet });
     return normalizePage<any>(res.data).records;
   },
+  async consultant(options?: { quiet?: boolean }) {
+    const res = await client.get('/tasks/consultant', { params: { pageNum: 1, pageSize: 500 }, silent: options?.quiet });
+    return normalizePage<any>(res.data).records;
+  },
   async update(id: string, payload: Record<string, unknown>) {
     const res = await client.patch(`/tasks/${id}`, payload);
     return unwrapResponse<any>(res.data);
