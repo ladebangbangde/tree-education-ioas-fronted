@@ -44,7 +44,7 @@ export const menuConfig: AppMenuItem[] = [
     label: '任务中心',
     path: '/tasks',
     icon: <FileTextOutlined />,
-    roles: ['MEDIA', 'OPERATOR']
+    roles: ['MEDIA', 'OPERATOR', 'CONSULTANT']
   },
   {
     key: 'role-reports',
