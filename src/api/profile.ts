@@ -6,9 +6,17 @@ export interface RegionChangePayload {
   reason?: string;
 }
 
+export interface ConsultantPublicProfilePayload {
+  publicBio?: string;
+}
+
 export const profileApi = {
   async me() {
     const res = await client.get('/profile/me');
+    return unwrapResponse<any>(res.data);
+  },
+  async updatePublicProfile(payload: ConsultantPublicProfilePayload) {
+    const res = await client.put('/profile/consultant/public-profile', payload);
     return unwrapResponse<any>(res.data);
   },
   async uploadQr(file: File) {
