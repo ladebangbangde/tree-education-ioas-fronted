@@ -1,4 +1,4 @@
-import { BellOutlined, LogoutOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
+import { BellOutlined, LogoutOutlined, SearchOutlined, UserOutlined, FileTextOutlined } from '@ant-design/icons';
 import { Avatar, Badge, Button, Dropdown, Empty, Input, Layout, List, Space, Spin, Tag, Typography } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -82,7 +82,12 @@ export default function AppHeader(){
       </Dropdown>
       <Tag color='blue'>{roleLabels[role]}</Tag>
       {department&&<Tag>{department}</Tag>}
-      <Dropdown menu={{items:[{key:'logout',icon:<LogoutOutlined/>,label:'退出登录',onClick:()=>{logout();nav('/login');}}]}}>
+      <Dropdown menu={{items:[
+        {key:'profile',icon:<UserOutlined/>,label:'个人信息设置',onClick:()=>nav('/profile/settings')},
+        {key:'tasks',icon:<FileTextOutlined/>,label:'任务中心',onClick:()=>nav('/tasks')},
+        {type:'divider'},
+        {key:'logout',icon:<LogoutOutlined/>,label:'退出登录',onClick:()=>{logout();nav('/login');}}
+      ]}}>
         <Space className='click user-info'><Avatar icon={<UserOutlined/>}/>{userName}</Space>
       </Dropdown>
     </Space>
