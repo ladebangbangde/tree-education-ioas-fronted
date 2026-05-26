@@ -114,7 +114,7 @@ export const menuConfig: AppMenuItem[] = [
     label: '旧任务中心',
     path: '/messages/tasks',
     icon: <FileTextOutlined />,
-    roles: ['SUPER_ADMIN', 'CONSULTANT']
+    roles: ['SUPER_ADMIN']
   },
   {
     key: 'reports-old',
