@@ -49,6 +49,13 @@ export default function ProfileSettingsPage() {
     await load();
   };
 
+  const uploadAvatar = async (file: File) => {
+    await profileApi.uploadAvatar(file);
+    message.success('官网展示头像已上传，官网顾问团队区域会使用这张头像');
+    await load();
+    return false;
+  };
+
   const uploadQr = async (file: File) => {
     await profileApi.uploadQr(file);
     message.success('企业微信二维码已上传，任务中心已生成上传完成任务');
@@ -105,9 +112,13 @@ export default function ProfileSettingsPage() {
       ]} />
     </Card>
 
-    {isConsultant && <Card title='官网展示信息' style={{ marginTop: 16 }}>
+    {isConsultant && <Card
+      title='官网展示信息'
+      style={{ marginTop: 16 }}
+      extra={<Upload accept='image/*' showUploadList={false} beforeUpload={uploadAvatar as any}><Button icon={<UploadOutlined />}>上传/替换官网头像</Button></Upload>}
+    >
       <Descriptions bordered column={2} size='small' items={[
-        { label: '官网展示头像', children: me?.consultantAvatarPublicUrl ? <Image src={me.consultantAvatarPublicUrl} width={96} /> : '-' },
+        { label: '官网展示头像', children: me?.consultantAvatarPublicUrl ? <Image src={me.consultantAvatarPublicUrl} width={120} /> : '暂未上传官网头像' },
         { label: '官网展示标题', children: me?.publicTitle || '-' }
       ]} />
       <Form form={profileForm} layout='vertical' style={{ marginTop: 16 }}>
