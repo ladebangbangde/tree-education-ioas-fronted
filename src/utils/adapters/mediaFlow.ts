@@ -88,9 +88,11 @@ export function adaptLead(dto: any): Lead {
   const convertedStudentId = optionalStringValue(dto?.convertedStudentId, dto?.studentProfileId, dto?.studentId);
   const convertedAt = optionalStringValue(dto?.convertedAt);
   const archived = Boolean(dto?.archived ?? convertedStudentId ?? convertedAt ?? status === 'converted');
+  const leadRole = stringValue(dto?.leadRole, dto?.customerRole, 'student') === 'worker' ? 'worker' : 'student';
   return {
     id: stringValue(dto?.id, dto?.leadId),
     sourceType: stringValue(dto?.sourceType, 'content_package') as Lead['sourceType'],
+    leadRole,
     relatedPackageId: stringValue(dto?.relatedPackageId, dto?.packageId, dto?.contentPackageId),
     operatorId: stringValue(dto?.operatorId),
     leadNo: stringValue(dto?.leadNo, dto?.no, dto?.code),
