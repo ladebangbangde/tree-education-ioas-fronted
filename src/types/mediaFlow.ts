@@ -8,6 +8,7 @@ export type OperatorTaskStatus = 'pending' | 'processing' | 'completed' | 'overd
 export type TaskStatus = MediaTaskStatus | OperatorTaskStatus;
 export type LeadStatus = 'unassigned' | 'assigned' | 'following' | 'confirmed' | 'converted' | 'completed' | 'invalid' | 'closed';
 export type SourceType = 'content_package' | 'official_website' | 'manual' | 'campaign';
+export type LeadRole = 'student' | 'worker';
 
 export interface FolderPathNode {
   operatorId: string;
@@ -84,6 +85,7 @@ export interface Task {
 export interface Lead {
   id: string;
   sourceType: SourceType;
+  leadRole: LeadRole;
   relatedPackageId: string;
   operatorId: string;
   leadNo: string;
