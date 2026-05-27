@@ -33,6 +33,10 @@ export const leadsApi = {
     const res = await client.post(`/leads/${id}/convert-student`, payload);
     return unwrapResponse<any>(res.data);
   },
+  async convertToCustomer(id: string, payload: LeadPayload) {
+    const res = await client.post(`/leads/${id}/convert-customer`, payload);
+    return unwrapResponse<any>(res.data);
+  },
   async consultants() {
     const res = await client.get('/leads/consultants');
     return unwrapResponse<any[]>(res.data);
