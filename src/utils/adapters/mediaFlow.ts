@@ -7,6 +7,10 @@ const optionalNumberValue = (...values: unknown[]) => {
   const value = values.find(v => v !== undefined && v !== null && v !== '');
   return value === undefined ? undefined : Number(value);
 };
+const optionalStringValue = (...values: unknown[]) => {
+  const value = stringValue(...values);
+  return value || undefined;
+};
 
 const normalizeRole = (role?: string, fallback: Role = 'OPERATOR'): Role => {
   const value = (role || fallback).toUpperCase();
@@ -80,6 +84,10 @@ export function adaptOperator(dto: any): OperatorProfile {
 }
 
 export function adaptLead(dto: any): Lead {
+  const status = stringValue(dto?.status, 'unassigned') as LeadStatus;
+  const convertedStudentId = optionalStringValue(dto?.convertedStudentId, dto?.studentProfileId, dto?.studentId);
+  const convertedAt = optionalStringValue(dto?.convertedAt);
+  const archived = Boolean(dto?.archived ?? convertedStudentId ?? convertedAt ?? status === 'converted');
   return {
     id: stringValue(dto?.id, dto?.leadId),
     sourceType: stringValue(dto?.sourceType, 'content_package') as Lead['sourceType'],
@@ -94,9 +102,14 @@ export function adaptLead(dto: any): Lead {
     targetMajor: stringValue(dto?.targetMajor, dto?.intentMajor),
     budget: stringValue(dto?.budget),
     degreeLevel: stringValue(dto?.degreeLevel, dto?.degree),
-    status: stringValue(dto?.status, 'unassigned') as LeadStatus,
+    status,
     assignedTo: stringValue(dto?.assignedTo, dto?.assigneeId),
     assignedToName: stringValue(dto?.assignedToName, dto?.assigneeName),
+    convertedStudentId,
+    convertedAt,
+    convertedBy: optionalStringValue(dto?.convertedBy),
+    archived,
+    mutable: Boolean(dto?.mutable ?? !archived),
     createdAt: stringValue(dto?.createdAt, dto?.createTime),
     updatedAt: stringValue(dto?.updatedAt, dto?.updateTime),
     remark: stringValue(dto?.remark, dto?.notes) || undefined
