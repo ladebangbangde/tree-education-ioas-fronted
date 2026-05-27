@@ -6,8 +6,8 @@ export type TaskRoleType = 'media' | 'operator';
 export type MediaTaskStatus = 'created' | 'processing' | 'uploading' | 'success' | 'failed' | 'cancelled' | 'partial_success' | 'pending_supplement';
 export type OperatorTaskStatus = 'pending' | 'processing' | 'completed' | 'overdue' | 'rejected';
 export type TaskStatus = MediaTaskStatus | OperatorTaskStatus;
-export type LeadStatus = 'unassigned' | 'assigned' | 'following' | 'completed' | 'invalid';
-export type SourceType = 'content_package' | 'manual' | 'campaign';
+export type LeadStatus = 'unassigned' | 'assigned' | 'following' | 'confirmed' | 'converted' | 'completed' | 'invalid' | 'closed';
+export type SourceType = 'content_package' | 'official_website' | 'manual' | 'campaign';
 
 export interface FolderPathNode {
   operatorId: string;
@@ -98,6 +98,11 @@ export interface Lead {
   status: LeadStatus;
   assignedTo: string;
   assignedToName: string;
+  convertedStudentId?: string;
+  convertedAt?: string;
+  convertedBy?: string;
+  archived?: boolean;
+  mutable?: boolean;
   createdAt: string;
   updatedAt: string;
   remark?: string;
