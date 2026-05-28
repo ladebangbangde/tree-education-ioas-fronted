@@ -73,18 +73,18 @@ export const menuConfig: AppMenuItem[] = [
   },
   {
     key: 'students',
-    label: '学生档案',
+    label: '客户档案',
     icon: <UserOutlined />,
     roles: ['SUPER_ADMIN', 'CONSULTANT'],
     children: [{ key: 'students-list', label: '档案列表', path: '/students/list' }]
   },
   {
     key: 'applications',
-    label: '申请交付',
+    label: '申请流程',
     icon: <UserOutlined />,
     roles: ['SUPER_ADMIN', 'CONSULTANT'],
     children: [
-      { key: 'kanban', label: '申请看板', path: '/applications/kanban' },
+      { key: 'kanban', label: '流程看板', path: '/applications/kanban' },
       { key: 'materials', label: '材料清单', path: '/applications/materials' },
       { key: 'offers', label: 'Offer管理', path: '/applications/offers' },
       { key: 'visa', label: '签证管理', path: '/applications/visa' }
