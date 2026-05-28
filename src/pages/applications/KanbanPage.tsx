@@ -1,5 +1,87 @@
-import { Alert, Button, Card, Col, List, Row, Tag } from 'antd';import { useNavigate } from 'react-router-dom';
-import { ApplicationStageCard, PageHeader, TaskListCard } from '@/components';
-import { kanbanColumns, kanbanData } from '@/mock/applications';import { tasks } from '@/mock/tasks';import { scopeKanban, scopeTasks } from '@/utils/mockScope';
-const stagePath:Record<string,string>={'选校规划':'school','文书准备':'essay','网申提交':'online','Offer跟进':'offer','签证办理':'visa','行前准备':'pre'};
-export default function ApplicationsKanbanPage(){const nav=useNavigate();const data=scopeKanban(kanbanData);return <><PageHeader title='申请交付看板' extra={<Button onClick={()=>nav('/applications/stage/risk')}>风险提醒详情</Button>}/><Row gutter={[16,16]}>{kanbanColumns.map(c=><Col span={4} key={c}><Card title={c} extra={<Button type='link' onClick={()=>nav(`/applications/stage/${stagePath[c]}`)}>详情</Button>} bodyStyle={{padding:8}}>{data[c as keyof typeof data].map(s=><div key={s.name} onClick={()=>nav(`/applications/stage/${stagePath[c]}`)} style={{cursor:'pointer'}}><ApplicationStageCard {...s} /><Tag color='orange'>{s.alert}</Tag></div>)}</Card></Col>)}<Col span={24} className='mt12'><Row gutter={[16,16]}><Col span={8}><TaskListCard title='今日待办' data={scopeTasks(tasks.todo)}/></Col><Col span={8}><TaskListCard title='超期任务' data={scopeTasks(tasks.timeout)}/></Col><Col span={8}><Card title='风险提醒' extra={<Button type='link' onClick={()=>nav('/applications/stage/risk')}>查看全部</Button>}><List size='small' dataSource={['张成业：资金证明需更新','周可欣：推荐信签字延误','沈悦：面签材料缺体检回执']} renderItem={i=><List.Item><Alert type='warning' showIcon message={i}/></List.Item>}/></Card></Col></Row></Col></Row></>}
+import { Button, Card, Col, Empty, Form, Input, Progress, Row, Space, Table, Tag, message } from 'antd';
+import dayjs from 'dayjs';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { PageHeader, SearchFilterBar } from '@/components';
+import { applicationFlowsApi, type ApplicationFlow, type ApplicationStepStatus } from '@/api/applicationFlows';
+
+const statusMap: Record<ApplicationStepStatus, { text: string; color: string }> = {
+  LOCKED: { text: '未解锁', color: 'default' },
+  PENDING: { text: '待处理', color: 'blue' },
+  IN_PROGRESS: { text: '处理中', color: 'orange' },
+  COMPLETED: { text: '已完成', color: 'green' },
+  REJECTED: { text: '已退回', color: 'red' }
+};
+
+const fmt = (value?: string) => value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
+
+export default function ApplicationsKanbanPage() {
+  const nav = useNavigate();
+  const [rows, setRows] = useState<ApplicationFlow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const [studentProfileId, setStudentProfileId] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const page = await applicationFlowsApi.list({ keyword: keyword || undefined, pageNum: 1, pageSize: 100 });
+      setRows(page.records || []);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load().catch(() => undefined); }, []);
+
+  const startFlow = async () => {
+    if (!studentProfileId.trim()) {
+      message.warning('请输入客户档案ID');
+      return;
+    }
+    const flow = await applicationFlowsApi.start(studentProfileId.trim());
+    message.success('申请流程已创建');
+    setStudentProfileId('');
+    await load();
+    nav(`/applications/detail/${flow.id}`);
+  };
+
+  const columns = [
+    { title: '客户', dataIndex: 'studentName', render: (v: string, r: ApplicationFlow) => <Button type='link' onClick={() => nav(`/applications/detail/${r.id}`)}>{v || r.studentNo || r.id}</Button> },
+    { title: '客户编号', dataIndex: 'studentNo', render: (v: string) => v || '-' },
+    { title: '负责顾问', dataIndex: 'ownerConsultantName', render: (v: string) => v || '-' },
+    { title: '当前阶段', dataIndex: 'currentStep', render: (_: string, r: ApplicationFlow) => {
+      const step = r.steps?.find(s => s.stepCode === r.currentStep) || r.steps?.[0];
+      return step ? <Tag color={statusMap[step.status]?.color}>{step.stepName} · {statusMap[step.status]?.text}</Tag> : '-';
+    }},
+    { title: '进度', dataIndex: 'progressPercent', render: (v: number) => <Progress percent={v || 0} size='small' /> },
+    { title: '材料数', render: (_: unknown, r: ApplicationFlow) => r.steps?.reduce((sum, s) => sum + (s.uploadedFileCount || 0), 0) || 0 },
+    { title: '更新时间', dataIndex: 'updatedAt', render: fmt },
+    { title: '操作', fixed: 'right' as const, width: 120, render: (_: unknown, r: ApplicationFlow) => <Button type='primary' onClick={() => nav(`/applications/detail/${r.id}`)}>进入流程</Button> }
+  ];
+
+  const active = rows.filter(r => !r.completed).length;
+  const completed = rows.filter(r => r.completed).length;
+  const avg = rows.length ? Math.round(rows.reduce((sum, r) => sum + (r.progressPercent || 0), 0) / rows.length) : 0;
+
+  return <>
+    <PageHeader title='申请交付看板' extra={<Button onClick={() => nav('/students/list')}>客户档案列表</Button>} />
+    <Row gutter={[16, 16]} className='mb12'>
+      <Col span={8}><Card><div className='text-muted'>进行中流程</div><div style={{ fontSize: 28, fontWeight: 700 }}>{active}</div></Card></Col>
+      <Col span={8}><Card><div className='text-muted'>已完成流程</div><div style={{ fontSize: 28, fontWeight: 700 }}>{completed}</div></Card></Col>
+      <Col span={8}><Card><div className='text-muted'>平均进度</div><Progress percent={avg} /></Card></Col>
+    </Row>
+    <SearchFilterBar>
+      <Form layout='inline' style={{ gap: 16, rowGap: 16 }}>
+        <Form.Item label='关键词'><Input value={keyword} onChange={e => setKeyword(e.target.value)} placeholder='客户姓名/编号' /></Form.Item>
+        <Button type='primary' onClick={() => load()}>查询</Button>
+        <Button onClick={() => { setKeyword(''); setTimeout(() => load(), 0); }}>重置</Button>
+        <Form.Item label='客户档案ID'><Input value={studentProfileId} onChange={e => setStudentProfileId(e.target.value)} placeholder='输入ID创建流程' style={{ width: 160 }} /></Form.Item>
+        <Button onClick={startFlow}>创建申请流程</Button>
+      </Form>
+    </SearchFilterBar>
+    <Card>
+      <Table rowKey='id' columns={columns as any} dataSource={rows} loading={loading} pagination={{ total: rows.length, showSizeChanger: true }} locale={{ emptyText: <Empty description='暂无申请流程，请先从客户档案创建' /> }} />
+    </Card>
+  </>;
+}
