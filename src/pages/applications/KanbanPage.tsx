@@ -1,4 +1,4 @@
-import { Button, Card, Col, Empty, Form, Input, Progress, Row, Space, Table, Tag, message } from 'antd';
+import { Button, Card, Col, Empty, Form, Input, Progress, Row, Table, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -20,7 +20,6 @@ export default function ApplicationsKanbanPage() {
   const [rows, setRows] = useState<ApplicationFlow[]>([]);
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
-  const [studentProfileId, setStudentProfileId] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -33,18 +32,6 @@ export default function ApplicationsKanbanPage() {
   };
 
   useEffect(() => { load().catch(() => undefined); }, []);
-
-  const startFlow = async () => {
-    if (!studentProfileId.trim()) {
-      message.warning('请输入客户档案ID');
-      return;
-    }
-    const flow = await applicationFlowsApi.start(studentProfileId.trim());
-    message.success('申请流程已创建');
-    setStudentProfileId('');
-    await load();
-    nav(`/applications/detail/${flow.id}`);
-  };
 
   const columns = [
     { title: '客户', dataIndex: 'studentName', render: (v: string, r: ApplicationFlow) => <Button type='link' onClick={() => nav(`/applications/detail/${r.id}`)}>{v || r.studentNo || r.id}</Button> },
@@ -65,7 +52,7 @@ export default function ApplicationsKanbanPage() {
   const avg = rows.length ? Math.round(rows.reduce((sum, r) => sum + (r.progressPercent || 0), 0) / rows.length) : 0;
 
   return <>
-    <PageHeader title='申请交付看板' extra={<Button onClick={() => nav('/students/list')}>客户档案列表</Button>} />
+    <PageHeader title='申请流程看板' extra={<Button type='primary' onClick={() => nav('/students/list')}>从客户档案创建/进入流程</Button>} />
     <Row gutter={[16, 16]} className='mb12'>
       <Col span={8}><Card><div className='text-muted'>进行中流程</div><div style={{ fontSize: 28, fontWeight: 700 }}>{active}</div></Card></Col>
       <Col span={8}><Card><div className='text-muted'>已完成流程</div><div style={{ fontSize: 28, fontWeight: 700 }}>{completed}</div></Card></Col>
@@ -76,12 +63,10 @@ export default function ApplicationsKanbanPage() {
         <Form.Item label='关键词'><Input value={keyword} onChange={e => setKeyword(e.target.value)} placeholder='客户姓名/编号' /></Form.Item>
         <Button type='primary' onClick={() => load()}>查询</Button>
         <Button onClick={() => { setKeyword(''); setTimeout(() => load(), 0); }}>重置</Button>
-        <Form.Item label='客户档案ID'><Input value={studentProfileId} onChange={e => setStudentProfileId(e.target.value)} placeholder='输入ID创建流程' style={{ width: 160 }} /></Form.Item>
-        <Button onClick={startFlow}>创建申请流程</Button>
       </Form>
     </SearchFilterBar>
     <Card>
-      <Table rowKey='id' columns={columns as any} dataSource={rows} loading={loading} pagination={{ total: rows.length, showSizeChanger: true }} locale={{ emptyText: <Empty description='暂无申请流程，请先从客户档案创建' /> }} />
+      <Table rowKey='id' columns={columns as any} dataSource={rows} loading={loading} pagination={{ total: rows.length, showSizeChanger: true }} locale={{ emptyText: <Empty description='暂无申请流程。请先在线索列表生成客户档案，再从客户档案进入申请流程。' /> }} />
     </Card>
   </>;
 }
