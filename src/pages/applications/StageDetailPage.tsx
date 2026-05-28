@@ -1,14 +1,137 @@
-import { Alert, Button, Card, Col, Descriptions, Progress, Row, Space, Steps, Table, Tabs, Tag, Timeline } from 'antd';
-import { useParams } from 'react-router-dom';
-import { PageHeader, StatusTag } from '@/components';
-import { appOverview, essayRows, materialRows, offers, riskCards, schoolRows, visaCases } from '@/mock/applications';
-import { useEnterpriseActions } from '@/hooks/useEnterpriseActions';
+import { Button, Card, Empty, Form, Input, Progress, Select, Space, Table, Tag } from 'antd';
+import dayjs from 'dayjs';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { PageHeader, SearchFilterBar } from '@/components';
+import { applicationFlowsApi, type ApplicationFlow, type ApplicationStepCode, type ApplicationStepStatus } from '@/api/applicationFlows';
 
-const titleMap: Record<string, string> = { school:'选校规划详情', essay:'文书准备详情', online:'网申提交详情', offer:'Offer 跟进详情', visa:'签证办理详情', pre:'行前准备详情', risk:'风险提醒详情', material:'材料审核详情' };
-export default function StageDetailPage(){
-  const { stage='school' } = useParams(); const title = titleMap[stage] || '申请交付详情'; const {openAction, contextHolder}=useEnterpriseActions(title);
-  return <>{contextHolder}<PageHeader title={title} extra={<Space><Button onClick={()=>openAction('file', appOverview)}>材料审核详情</Button><Button onClick={()=>openAction('log', appOverview)}>查看日志</Button><Button type='primary' onClick={()=>openAction('config', appOverview)}>节点配置</Button></Space>} />
-    <Card className='mb12'><Descriptions column={3} items={[{label:'申请编号',children:appOverview.id},{label:'学生',children:appOverview.student},{label:'国家',children:appOverview.country},{label:'当前阶段',children:<StatusTag status={appOverview.stage}/>},{label:'负责人',children:appOverview.owner},{label:'目标院校',children:appOverview.targetSchools}]} /><Steps className='mt12' current={['school','essay','online','offer','visa','pre'].indexOf(stage)} items={['选校规划','文书准备','网申提交','Offer跟进','签证办理','行前准备'].map(title=>({title}))}/></Card>
-    <Tabs items={[{key:'schools',label:'选校规划',children:<Table rowKey='id' dataSource={schoolRows} pagination={false} columns={[{title:'院校',dataIndex:'school'},{title:'专业',dataIndex:'major'},{title:'状态',dataIndex:'status',render:(v:string)=><Tag color='blue'>{v}</Tag>},{title:'截止时间',dataIndex:'deadline'},{title:'操作',render:(_:unknown,r:any)=><Button type='link' onClick={()=>openAction('view',r)}>查看详情</Button>}]} />},{key:'essay',label:'文书准备',children:<Table rowKey='id' dataSource={essayRows} pagination={false} columns={[{title:'文书',dataIndex:'name'},{title:'负责人',dataIndex:'owner'},{title:'状态',dataIndex:'status'},{title:'更新时间',dataIndex:'updated'},{title:'操作',render:(_:unknown,r:any)=><Button type='link' onClick={()=>openAction('edit',r)}>编辑详情</Button>}]} />},{key:'online',label:'网申提交',children:<Timeline items={[{children:'UCL 网申表单已完成 90%'},{children:'曼大申请费待支付'},{children:'爱丁堡项目推荐信等待上传'}]} />},{key:'offer',label:'Offer跟进',children:<Table rowKey='id' dataSource={offers} pagination={false} columns={[{title:'学校',dataIndex:'school'},{title:'专业',dataIndex:'major'},{title:'状态',dataIndex:'status'},{title:'操作',render:(_:unknown,r:any)=><Button type='link' onClick={()=>openAction('view',r)}>查看Offer</Button>}]} />},{key:'visa',label:'签证办理',children:<Table rowKey='id' dataSource={visaCases} pagination={false} columns={[{title:'学生',dataIndex:'student'},{title:'状态',dataIndex:'status'},{title:'材料进度',dataIndex:'progress',render:(v:number)=><Progress percent={v} size='small'/>},{title:'风险',dataIndex:'risk'}]} />},{key:'pre',label:'行前准备',children:<Row gutter={[16,16]}>{['住宿确认','机票预订','接机登记','行前说明会'].map(i=><Col span={6} key={i}><Card><h3>{i}</h3><Progress percent={75}/><Button className='mt12' onClick={()=>openAction('view',{name:i,status:'进行中'})}>查看详情</Button></Card></Col>)}</Row>},{key:'risk',label:'风险提醒',children:<Row gutter={[16,16]}>{riskCards.map(r=><Col span={12} key={r.title}><Alert type={r.level==='高'?'error':'warning'} showIcon message={`${r.title} · ${r.level}风险`} description={r.desc}/></Col>)}</Row>}]} />
+type StageRow = {
+  key: string;
+  flowId: number;
+  studentName: string;
+  studentNo?: string;
+  ownerConsultantName: string;
+  stepCode: ApplicationStepCode;
+  stepName: string;
+  status: ApplicationStepStatus;
+  uploadedFileCount: number;
+  note?: string;
+  startedAt?: string;
+  completedAt?: string;
+  progressPercent: number;
+};
+
+const statusMap: Record<ApplicationStepStatus, { text: string; color: string }> = {
+  LOCKED: { text: '未解锁', color: 'default' },
+  PENDING: { text: '待处理', color: 'blue' },
+  IN_PROGRESS: { text: '处理中', color: 'orange' },
+  COMPLETED: { text: '已完成', color: 'green' },
+  REJECTED: { text: '已退回', color: 'red' }
+};
+
+const stageMap: Record<string, { title: string; codes: ApplicationStepCode[] }> = {
+  material: { title: '材料阶段详情', codes: ['PREPARE_MATERIALS'] },
+  school: { title: '申请材料阶段详情', codes: ['PREPARE_MATERIALS'] },
+  essay: { title: '申请材料阶段详情', codes: ['PREPARE_MATERIALS'] },
+  online: { title: '学校申请阶段详情', codes: ['SCHOOL_OFFER'] },
+  offer: { title: 'Offer阶段详情', codes: ['SCHOOL_OFFER'] },
+  visa: { title: '签证阶段详情', codes: ['VISA_PROCESSING', 'VISA_PROCEDURES', 'VISA_APPROVED_TICKET'] },
+  pre: { title: '签证获批与机票阶段详情', codes: ['VISA_APPROVED_TICKET'] },
+  risk: { title: '流程风险提醒', codes: ['PREPARE_MATERIALS', 'SCHOOL_OFFER', 'VISA_PROCESSING', 'VISA_PROCEDURES', 'VISA_APPROVED_TICKET'] }
+};
+
+const stepText: Record<ApplicationStepCode, string> = {
+  PREPARE_MATERIALS: '准备申请材料',
+  SCHOOL_OFFER: '申请获批学校发Offer',
+  VISA_PROCESSING: '签证办理',
+  VISA_PROCEDURES: '完成签证相关手续',
+  VISA_APPROVED_TICKET: '签证获批购买机票'
+};
+
+const fmt = (value?: string) => value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
+
+export default function StageDetailPage() {
+  const nav = useNavigate();
+  const { stage = 'material' } = useParams();
+  const config = stageMap[stage] || stageMap.material;
+  const [flows, setFlows] = useState<ApplicationFlow[]>([]);
+  const [keyword, setKeyword] = useState('');
+  const [status, setStatus] = useState<ApplicationStepStatus>();
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const page = await applicationFlowsApi.list({ keyword: keyword || undefined, pageNum: 1, pageSize: 200 });
+      setFlows(page.records || []);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load().catch(() => undefined); }, [stage]);
+
+  const rows = useMemo<StageRow[]>(() => {
+    const result: StageRow[] = [];
+    flows.forEach(flow => flow.steps?.forEach(step => {
+      if (!config.codes.includes(step.stepCode)) return;
+      if (status && step.status !== status) return;
+      result.push({
+        key: `${flow.id}-${step.id}`,
+        flowId: flow.id,
+        studentName: flow.studentName,
+        studentNo: flow.studentNo,
+        ownerConsultantName: flow.ownerConsultantName,
+        stepCode: step.stepCode,
+        stepName: step.stepName || stepText[step.stepCode],
+        status: step.status,
+        uploadedFileCount: step.uploadedFileCount || 0,
+        note: step.customerVisibleNote || step.consultantNote,
+        startedAt: step.startedAt,
+        completedAt: step.completedAt,
+        progressPercent: flow.progressPercent || 0
+      });
+    }));
+    const k = keyword.trim();
+    return result.filter(item => !k || `${item.studentName}${item.studentNo || ''}${item.ownerConsultantName}${item.note || ''}${item.stepName}`.includes(k));
+  }, [flows, keyword, status, stage]);
+
+  const waiting = rows.filter(r => r.status === 'PENDING' || r.status === 'IN_PROGRESS').length;
+  const completed = rows.filter(r => r.status === 'COMPLETED').length;
+  const rejected = rows.filter(r => r.status === 'REJECTED').length;
+  const avg = rows.length ? Math.round(rows.reduce((sum, r) => sum + r.progressPercent, 0) / rows.length) : 0;
+
+  const columns = [
+    { title: '客户', render: (_: unknown, r: StageRow) => <Space direction='vertical' size={0}><b>{r.studentName}</b><span className='text-muted'>{r.studentNo || '-'}</span></Space> },
+    { title: '流程阶段', dataIndex: 'stepName', render: (v: string, r: StageRow) => <Tag color={r.stepCode.startsWith('VISA') ? 'purple' : r.stepCode === 'SCHOOL_OFFER' ? 'gold' : 'blue'}>{v}</Tag> },
+    { title: '状态', dataIndex: 'status', render: (v: ApplicationStepStatus) => <Tag color={statusMap[v]?.color}>{statusMap[v]?.text}</Tag> },
+    { title: '材料数', dataIndex: 'uploadedFileCount', render: (v: number) => <Tag color={v > 0 ? 'green' : 'default'}>{v}</Tag> },
+    { title: '整体进度', dataIndex: 'progressPercent', render: (v: number) => <Progress percent={v || 0} size='small' /> },
+    { title: '负责顾问', dataIndex: 'ownerConsultantName', render: (v: string) => v || '-' },
+    { title: '备注', dataIndex: 'note', render: (v: string) => v || '-' },
+    { title: '开始时间', dataIndex: 'startedAt', render: fmt },
+    { title: '完成时间', dataIndex: 'completedAt', render: fmt },
+    { title: '操作', width: 120, render: (_: unknown, r: StageRow) => <Button type='primary' onClick={() => nav(`/applications/detail/${r.flowId}`)}>进入流程</Button> }
+  ];
+
+  return <>
+    <PageHeader title={config.title} extra={<Button onClick={() => nav('/applications/kanban')}>返回流程看板</Button>} />
+    <Space className='mb12' size={16} style={{ width: '100%' }}>
+      <Card style={{ flex: 1 }}><div className='text-muted'>处理中</div><div style={{ fontSize: 28, fontWeight: 700 }}>{waiting}</div></Card>
+      <Card style={{ flex: 1 }}><div className='text-muted'>已完成</div><div style={{ fontSize: 28, fontWeight: 700 }}>{completed}</div></Card>
+      <Card style={{ flex: 1 }}><div className='text-muted'>异常/退回</div><div style={{ fontSize: 28, fontWeight: 700 }}>{rejected}</div></Card>
+      <Card style={{ flex: 1 }}><div className='text-muted'>平均进度</div><Progress percent={avg} /></Card>
+    </Space>
+    <SearchFilterBar>
+      <Form layout='inline' style={{ gap: 16, rowGap: 16 }}>
+        <Form.Item label='关键词'><Input value={keyword} onChange={e => setKeyword(e.target.value)} placeholder='客户/编号/顾问/备注' allowClear /></Form.Item>
+        <Form.Item label='状态'><Select allowClear value={status} onChange={setStatus} style={{ width: 130 }} options={Object.entries(statusMap).map(([value, meta]) => ({ value, label: meta.text }))} /></Form.Item>
+        <Button type='primary' onClick={() => load()}>查询</Button>
+        <Button onClick={() => { setKeyword(''); setStatus(undefined); setTimeout(() => load(), 0); }}>重置</Button>
+      </Form>
+    </SearchFilterBar>
+    <Card>
+      <Table rowKey='key' columns={columns as any} dataSource={rows} loading={loading} pagination={{ total: rows.length, showSizeChanger: true }} locale={{ emptyText: <Empty description='暂无真实阶段数据。请先从客户档案进入申请流程并推进节点。' /> }} />
+    </Card>
   </>;
 }
