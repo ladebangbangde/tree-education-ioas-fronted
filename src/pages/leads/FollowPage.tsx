@@ -42,23 +42,24 @@ function FlowGraph({ nodes }: { nodes: TrackingFlowNode[] }) {
       return {
         id: node.id,
         name: node.label,
-        x: 110 + index * 210,
-        y: isCondition ? 150 : 140,
+        x: index * 230,
+        y: isCondition ? 20 : 0,
         symbol: isCondition ? 'diamond' : node.nodeType === 'start' ? 'circle' : 'roundRect',
-        symbolSize: isCondition ? [118, 118] : node.nodeType === 'start' ? 96 : [150, 84],
-        value: [node.label, statusText(node.status), node.description || '-', fmt(node.happenedAt)].join('\n'),
+        symbolSize: isCondition ? [120, 120] : node.nodeType === 'start' ? 92 : [162, 86],
         itemStyle: {
           color: '#ffffff',
           borderColor: color,
           borderWidth: 2,
-          shadowBlur: 10,
-          shadowColor: 'rgba(0,0,0,0.08)'
+          shadowBlur: 12,
+          shadowColor: 'rgba(0,0,0,0.10)'
         },
         label: {
           show: true,
           color: '#1f1f1f',
           fontSize: 12,
           lineHeight: 18,
+          width: isCondition ? 92 : 138,
+          overflow: 'break',
           formatter: () => `${node.label}\n{status|${statusText(node.status)}}`,
           rich: {
             status: { color, fontWeight: 700, lineHeight: 24 }
@@ -69,24 +70,28 @@ function FlowGraph({ nodes }: { nodes: TrackingFlowNode[] }) {
         }
       };
     });
+
     const links = nodes.slice(1).map((node, index) => ({
       source: nodes[index].id,
       target: node.id,
       label: { show: node.id === 'transfer', formatter: '判断', color: '#8c8c8c', fontSize: 11 },
       lineStyle: { color: '#91caff', width: 2, curveness: 0 }
     }));
+
     return {
+      backgroundColor: '#fff',
       animationDuration: 500,
       tooltip: { trigger: 'item', confine: true },
-      grid: { left: 0, right: 0, top: 0, bottom: 0 },
-      dataZoom: [{ type: 'inside', xAxisIndex: 0, filterMode: 'none' }],
-      xAxis: { show: false, min: 0, max: Math.max(900, nodes.length * 210 + 80) },
-      yAxis: { show: false, min: 40, max: 260 },
       series: [{
         type: 'graph',
-        coordinateSystem: 'cartesian2d',
         layout: 'none',
         roam: true,
+        left: 48,
+        right: 48,
+        top: 70,
+        bottom: 70,
+        zoom: nodes.length > 5 ? 0.78 : 1,
+        scaleLimit: { min: 0.35, max: 2.5 },
         edgeSymbol: ['none', 'arrow'],
         edgeSymbolSize: [0, 12],
         data: graphNodes,
