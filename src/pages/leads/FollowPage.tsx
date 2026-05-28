@@ -1,6 +1,7 @@
 import { Button, Card, Col, Empty, Form, Input, List, Progress, Row, Space, Spin, Tag, Timeline } from 'antd';
 import dayjs from 'dayjs';
-import { useEffect, useState } from 'react';
+import ReactECharts from 'echarts-for-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader, SearchFilterBar } from '@/components';
 import { customerTrackingsApi, type TrackingDetail, type TrackingFlowNode, type TrackingSummary } from '@/api/customerTrackings';
@@ -8,12 +9,20 @@ import { customerTrackingsApi, type TrackingDetail, type TrackingFlowNode, type 
 const fmt = (value?: string) => value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
 
 const statusColor = (status?: string) => {
+  if (status === 'COMPLETED') return '#52c41a';
+  if (status === 'IN_PROGRESS' || status === 'PENDING') return '#1677ff';
+  if (status === 'REJECTED') return '#ff4d4f';
+  if (status === 'SKIPPED') return '#bfbfbf';
+  if (status === 'LOCKED') return '#d9d9d9';
+  return '#722ed1';
+};
+
+const statusTagColor = (status?: string) => {
   if (status === 'COMPLETED') return 'green';
   if (status === 'IN_PROGRESS' || status === 'PENDING') return 'blue';
   if (status === 'REJECTED') return 'red';
-  if (status === 'SKIPPED') return 'default';
-  if (status === 'LOCKED') return 'default';
-  return 'processing';
+  if (status === 'SKIPPED' || status === 'LOCKED') return 'default';
+  return 'purple';
 };
 
 const statusText = (status?: string) => ({
@@ -26,31 +35,72 @@ const statusText = (status?: string) => ({
 }[status || ''] || status || '-');
 
 function FlowGraph({ nodes }: { nodes: TrackingFlowNode[] }) {
+  const option = useMemo(() => {
+    const graphNodes = nodes.map((node, index) => {
+      const isCondition = node.nodeType === 'condition';
+      const color = statusColor(node.status);
+      return {
+        id: node.id,
+        name: node.label,
+        x: 110 + index * 210,
+        y: isCondition ? 150 : 140,
+        symbol: isCondition ? 'diamond' : node.nodeType === 'start' ? 'circle' : 'roundRect',
+        symbolSize: isCondition ? [118, 118] : node.nodeType === 'start' ? 96 : [150, 84],
+        value: [node.label, statusText(node.status), node.description || '-', fmt(node.happenedAt)].join('\n'),
+        itemStyle: {
+          color: '#ffffff',
+          borderColor: color,
+          borderWidth: 2,
+          shadowBlur: 10,
+          shadowColor: 'rgba(0,0,0,0.08)'
+        },
+        label: {
+          show: true,
+          color: '#1f1f1f',
+          fontSize: 12,
+          lineHeight: 18,
+          formatter: () => `${node.label}\n{status|${statusText(node.status)}}`,
+          rich: {
+            status: { color, fontWeight: 700, lineHeight: 24 }
+          }
+        },
+        tooltip: {
+          formatter: () => `<b>${node.label}</b><br/>状态：${statusText(node.status)}<br/>说明：${node.description || '-'}<br/>时间：${fmt(node.happenedAt)}`
+        }
+      };
+    });
+    const links = nodes.slice(1).map((node, index) => ({
+      source: nodes[index].id,
+      target: node.id,
+      label: { show: node.id === 'transfer', formatter: '判断', color: '#8c8c8c', fontSize: 11 },
+      lineStyle: { color: '#91caff', width: 2, curveness: 0 }
+    }));
+    return {
+      animationDuration: 500,
+      tooltip: { trigger: 'item', confine: true },
+      grid: { left: 0, right: 0, top: 0, bottom: 0 },
+      dataZoom: [{ type: 'inside', xAxisIndex: 0, filterMode: 'none' }],
+      xAxis: { show: false, min: 0, max: Math.max(900, nodes.length * 210 + 80) },
+      yAxis: { show: false, min: 40, max: 260 },
+      series: [{
+        type: 'graph',
+        coordinateSystem: 'cartesian2d',
+        layout: 'none',
+        roam: true,
+        edgeSymbol: ['none', 'arrow'],
+        edgeSymbolSize: [0, 12],
+        data: graphNodes,
+        links,
+        emphasis: { focus: 'adjacency' },
+        lineStyle: { opacity: 0.95 },
+        labelLayout: { hideOverlap: false }
+      }]
+    };
+  }, [nodes]);
+
   if (!nodes.length) return <Empty description='暂无流程节点' />;
-  return <div style={{ overflowX: 'auto', padding: '12px 4px' }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 920 }}>
-      {nodes.map((node, index) => <div key={node.id} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div style={{
-          width: node.nodeType === 'condition' ? 132 : 150,
-          minHeight: node.nodeType === 'condition' ? 132 : 102,
-          transform: node.nodeType === 'condition' ? 'rotate(45deg)' : undefined,
-          border: '1px solid #d9d9d9',
-          borderRadius: node.nodeType === 'condition' ? 16 : 12,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#fff'
-        }}>
-          <div style={{ transform: node.nodeType === 'condition' ? 'rotate(-45deg)' : undefined, textAlign: 'center', padding: 10 }}>
-            <div style={{ fontWeight: 700 }}>{node.label}</div>
-            <Tag color={statusColor(node.status)} style={{ marginTop: 6 }}>{statusText(node.status)}</Tag>
-            <div className='text-muted' style={{ marginTop: 6, fontSize: 12 }}>{node.description || '-'}</div>
-            <div className='text-muted' style={{ marginTop: 4, fontSize: 12 }}>{fmt(node.happenedAt)}</div>
-          </div>
-        </div>
-        {index < nodes.length - 1 && <div style={{ width: 56, height: 1, borderTop: '2px solid #91caff', position: 'relative' }}><span style={{ position: 'absolute', right: -2, top: -6 }}>▶</span></div>}
-      </div>)}
-    </div>
+  return <div style={{ height: 320, width: '100%' }}>
+    <ReactECharts option={option} style={{ height: 320, width: '100%' }} notMerge lazyUpdate />
   </div>;
 }
 
@@ -133,8 +183,11 @@ export default function LeadsFollowPage() {
                 <Col span={6}><div className='text-muted'>档案生成时间</div><b>{fmt(summary?.customerCreatedAt)}</b></Col>
               </Row>
             </Card>
-            <Card title='档案生成后的流程图'>
+            <Card title='档案生成后的流程图' extra={<span className='text-muted'>支持鼠标滚轮缩放、拖动画布</span>}>
               <FlowGraph nodes={detail.graphNodes || []} />
+              <Space wrap style={{ marginTop: 8 }}>
+                {(detail.graphNodes || []).map(node => <Tag key={node.id} color={statusTagColor(node.status)}>{node.label} · {statusText(node.status)}</Tag>)}
+              </Space>
             </Card>
             <Card title='真实跟进时间线'>
               <Timeline items={(detail.events || []).map(item => ({
