@@ -1,36 +1,84 @@
-import { Button, Card, Col, DatePicker, Form, Input, Row, Select, Space, Switch, Table, Tag } from 'antd';
-import { LeadTimeline, PageHeader, StatusTag } from '@/components';
-import { followHistoryTable, followLogs, followTags, leadsList } from '@/mock/leads';
+import { Button, Card, Empty, Form, Input, Select, Space, Table, Tag } from 'antd';
+import dayjs from 'dayjs';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { PageHeader, SearchFilterBar } from '@/components';
+import { applicationFlowsApi, type ApplicationFlow, type ApplicationStepStatus } from '@/api/applicationFlows';
+import { studentsApi } from '@/api/students';
 
-export default function LeadsFollowPage(){
-  const lead = leadsList[1];
-  const columns=[{title:'跟进时间',dataIndex:'time'},{title:'方式',dataIndex:'method',render:(v:string)=><Tag color='blue'>{v}</Tag>},{title:'结果',dataIndex:'result',render:(v:string)=><StatusTag status={v==='高意向'?'高意向':'跟进中'}/>},{title:'顾问',dataIndex:'owner'},{title:'沟通纪要',dataIndex:'summary'}];
+type CustomerRow = { id: number | string; studentNo?: string; studentName?: string; ownerConsultantName?: string; createdAt?: string; updatedAt?: string };
+type RecordRow = { id: string; customerName: string; customerNo?: string; module: string; action: string; content: string; operator?: string; time?: string; status?: ApplicationStepStatus; flowId?: number };
+
+const statusMap: Record<ApplicationStepStatus, { text: string; color: string }> = {
+  LOCKED: { text: '未解锁', color: 'default' },
+  PENDING: { text: '待处理', color: 'blue' },
+  IN_PROGRESS: { text: '处理中', color: 'orange' },
+  COMPLETED: { text: '已完成', color: 'green' },
+  REJECTED: { text: '已退回', color: 'red' }
+};
+
+const fmt = (value?: string) => value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
+
+export default function LeadsFollowPage() {
+  const nav = useNavigate();
+  const [keyword, setKeyword] = useState('');
+  const [status, setStatus] = useState<ApplicationStepStatus>();
+  const [customers, setCustomers] = useState<CustomerRow[]>([]);
+  const [flows, setFlows] = useState<ApplicationFlow[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [customerPage, flowPage] = await Promise.all([
+        studentsApi.list({ keyword: keyword || undefined, profileStatus: 'ACTIVE', pageNum: 1, pageSize: 200 }),
+        applicationFlowsApi.list({ keyword: keyword || undefined, pageNum: 1, pageSize: 200 })
+      ]);
+      setCustomers(customerPage.records || []);
+      setFlows(flowPage.records || []);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load().catch(() => undefined); }, []);
+
+  const rows = useMemo<RecordRow[]>(() => {
+    const data: RecordRow[] = [];
+    customers.forEach(c => data.push({ id: `customer-${c.id}`, customerName: c.studentName || '-', customerNo: c.studentNo, module: '客户档案', action: '客户档案已生成/更新', content: '该客户已从线索转为正式客资，可进入申请流程。', operator: c.ownerConsultantName, time: c.updatedAt || c.createdAt }));
+    flows.forEach(flow => flow.steps?.forEach(step => {
+      if (status && step.status !== status) return;
+      data.push({ id: `step-${flow.id}-${step.id}`, customerName: flow.studentName, customerNo: flow.studentNo, module: '申请流程', action: step.stepName, content: step.customerVisibleNote || step.consultantNote || `已上传材料 ${step.uploadedFileCount || 0} 份`, operator: flow.ownerConsultantName, time: step.completedAt || step.startedAt || flow.updatedAt, status: step.status, flowId: flow.id });
+      step.attachments?.forEach(file => data.push({ id: `file-${file.id}`, customerName: flow.studentName, customerNo: flow.studentNo, module: '流程材料', action: file.originalFilename, content: file.note || file.attachmentType, operator: file.uploadedByName || flow.ownerConsultantName, time: file.createdAt, flowId: flow.id }));
+    }));
+    return data.sort((a, b) => dayjs(b.time || 0).valueOf() - dayjs(a.time || 0).valueOf());
+  }, [customers, flows, status]);
+
+  const filtered = rows.filter(r => !keyword.trim() || `${r.customerName}${r.customerNo || ''}${r.module}${r.action}${r.content}`.includes(keyword.trim()));
+
+  const columns = [
+    { title: '客户', render: (_: unknown, r: RecordRow) => <Space direction='vertical' size={0}><b>{r.customerName}</b><span className='text-muted'>{r.customerNo || '-'}</span></Space> },
+    { title: '模块', dataIndex: 'module', render: (v: string) => <Tag color={v === '申请流程' ? 'blue' : v === '流程材料' ? 'purple' : 'green'}>{v}</Tag> },
+    { title: '操作/节点', dataIndex: 'action' },
+    { title: '状态', dataIndex: 'status', render: (v: ApplicationStepStatus) => v ? <Tag color={statusMap[v]?.color}>{statusMap[v]?.text}</Tag> : '-' },
+    { title: '内容', dataIndex: 'content', render: (v: string) => v || '-' },
+    { title: '操作人', dataIndex: 'operator', render: (v: string) => v || '-' },
+    { title: '时间', dataIndex: 'time', render: fmt },
+    { title: '操作', width: 120, render: (_: unknown, r: RecordRow) => r.flowId ? <Button type='link' onClick={() => nav(`/applications/detail/${r.flowId}`)}>查看流程</Button> : <Button type='link' onClick={() => nav('/students/list')}>客户档案</Button> }
+  ];
 
   return <>
-    <PageHeader title='线索跟进工作台' />
-    <Card className='mb12'>
-      <Space wrap size={24}>
-        <span>线索编号：{lead.id}</span><span>学生：{lead.studentName}</span><span>来源：{lead.source}</span><span>国家：{lead.intentCountry}</span><span>评分：<Tag color='gold'>{lead.score}</Tag></span><span>下次跟进：{lead.nextFollowAt}</span>
-      </Space>
-      <div className='mt12'><Space wrap>{followTags.map(t=><Tag key={t}>{t}</Tag>)}</Space></div>
+    <PageHeader title='客资操作记录' />
+    <SearchFilterBar>
+      <Form layout='inline' style={{ gap: 16, rowGap: 16 }}>
+        <Form.Item label='关键词'><Input value={keyword} onChange={e => setKeyword(e.target.value)} placeholder='客户姓名/编号/流程节点' allowClear /></Form.Item>
+        <Form.Item label='节点状态'><Select allowClear value={status} onChange={setStatus} style={{ width: 150 }} options={Object.entries(statusMap).map(([value, meta]) => ({ value, label: meta.text }))} /></Form.Item>
+        <Button type='primary' onClick={() => load()}>查询</Button>
+        <Button onClick={() => { setKeyword(''); setStatus(undefined); setTimeout(() => load(), 0); }}>重置</Button>
+      </Form>
+    </SearchFilterBar>
+    <Card>
+      <Table rowKey='id' columns={columns as any} dataSource={filtered} loading={loading} pagination={{ total: filtered.length, showSizeChanger: true }} locale={{ emptyText: <Empty description='暂无客资操作记录。请先从线索生成客户档案，再进入申请流程。' /> }} />
     </Card>
-
-    <Row gutter={[16,16]}>
-      <Col span={12}><Card title='跟进时间线'><LeadTimeline items={followLogs.map(({time,content,owner})=>({time,content,owner}))} /></Card></Col>
-      <Col span={12}><Card title='新增跟进记录'>
-        <Form layout='vertical'>
-          <Form.Item label='跟进方式'><Select options={['电话','微信','面谈','邮件'].map(v=>({value:v}))}/></Form.Item>
-          <Form.Item label='跟进结果'><Select options={['已预约','待回访','高意向'].map(v=>({value:v}))}/></Form.Item>
-          <Form.Item label='沟通纪要'><Input.TextArea rows={4} placeholder='记录本次沟通重点、异议与下一步动作'/></Form.Item>
-          <Form.Item label='下次跟进时间'><DatePicker showTime style={{width:'100%'}}/></Form.Item>
-          <Form.Item label='是否高意向' valuePropName='checked'><Switch /></Form.Item>
-          <Button type='primary' block>保存跟进</Button>
-        </Form>
-      </Card></Col>
-    </Row>
-
-    <Card className='mt12' title='跟进历史列表'>
-      <Table rowKey='id' pagination={false} dataSource={followHistoryTable} columns={columns} />
-    </Card>
-  </>
+  </>;
 }
