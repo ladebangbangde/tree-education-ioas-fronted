@@ -1,4 +1,4 @@
-import client, { unwrapResponse } from './client';
+import { rootClient, unwrapResponse } from './client';
 import type { ApplicationStepCode, ApplicationStepStatus } from './applicationFlows';
 
 export type TrackingSummary = {
@@ -56,11 +56,11 @@ export type TrackingDetail = {
 
 export const customerTrackingsApi = {
   async list(params?: { keyword?: string }) {
-    const res = await client.get('/customer-trackings', { params });
+    const res = await rootClient.get('/customer-trackings', { params });
     return unwrapResponse<TrackingSummary[]>(res.data);
   },
   async detail(customerId: number | string) {
-    const res = await client.get(`/customer-trackings/${customerId}`);
+    const res = await rootClient.get(`/customer-trackings/${customerId}`);
     return unwrapResponse<TrackingDetail>(res.data);
   }
 };
