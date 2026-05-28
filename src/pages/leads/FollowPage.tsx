@@ -8,13 +8,25 @@ import { customerTrackingsApi, type TrackingDetail, type TrackingFlowNode, type 
 
 const fmt = (value?: string) => value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
 
+const FLOW_CARD = 'path://M14,0 L166,0 Q180,0 180,14 L180,76 Q180,90 166,90 L14,90 Q0,90 0,76 L0,14 Q0,0 14,0 Z';
+const FLOW_DIAMOND = 'path://M90,0 L180,70 L90,140 L0,70 Z';
+const FLOW_START = 'path://M45,0 A45,45 0 1,1 44.9,0 Z';
+
 const statusColor = (status?: string) => {
   if (status === 'COMPLETED') return '#52c41a';
   if (status === 'IN_PROGRESS' || status === 'PENDING') return '#1677ff';
   if (status === 'REJECTED') return '#ff4d4f';
-  if (status === 'SKIPPED') return '#bfbfbf';
-  if (status === 'LOCKED') return '#d9d9d9';
+  if (status === 'SKIPPED') return '#8c8c8c';
+  if (status === 'LOCKED') return '#bfbfbf';
   return '#722ed1';
+};
+
+const statusFill = (status?: string) => {
+  if (status === 'COMPLETED') return '#f6ffed';
+  if (status === 'IN_PROGRESS' || status === 'PENDING') return '#e6f4ff';
+  if (status === 'REJECTED') return '#fff1f0';
+  if (status === 'SKIPPED' || status === 'LOCKED') return '#fafafa';
+  return '#f9f0ff';
 };
 
 const statusTagColor = (status?: string) => {
@@ -38,31 +50,36 @@ function FlowGraph({ nodes }: { nodes: TrackingFlowNode[] }) {
   const option = useMemo(() => {
     const graphNodes = nodes.map((node, index) => {
       const isCondition = node.nodeType === 'condition';
+      const isStart = node.nodeType === 'start';
       const color = statusColor(node.status);
       return {
         id: node.id,
         name: node.label,
-        x: index * 230,
-        y: isCondition ? 20 : 0,
-        symbol: isCondition ? 'diamond' : node.nodeType === 'start' ? 'circle' : 'roundRect',
-        symbolSize: isCondition ? [120, 120] : node.nodeType === 'start' ? 92 : [162, 86],
+        x: index * 240,
+        y: isCondition ? 18 : 0,
+        symbol: isCondition ? FLOW_DIAMOND : isStart ? FLOW_START : FLOW_CARD,
+        symbolSize: isCondition ? [132, 106] : isStart ? [92, 92] : [176, 88],
         itemStyle: {
-          color: '#ffffff',
+          color: statusFill(node.status),
           borderColor: color,
           borderWidth: 2,
-          shadowBlur: 12,
-          shadowColor: 'rgba(0,0,0,0.10)'
+          shadowBlur: 8,
+          shadowColor: 'rgba(0,0,0,0.08)'
         },
         label: {
           show: true,
+          position: 'inside',
+          align: 'center',
+          verticalAlign: 'middle',
           color: '#1f1f1f',
           fontSize: 12,
-          lineHeight: 18,
-          width: isCondition ? 92 : 138,
+          lineHeight: 19,
+          width: isCondition ? 96 : isStart ? 76 : 146,
           overflow: 'break',
-          formatter: () => `${node.label}\n{status|${statusText(node.status)}}`,
+          formatter: () => `{name|${node.label}}\n{status|${statusText(node.status)}}`,
           rich: {
-            status: { color, fontWeight: 700, lineHeight: 24 }
+            name: { color: '#1f1f1f', fontWeight: 700, fontSize: 12, lineHeight: 22 },
+            status: { color, fontWeight: 700, fontSize: 12, lineHeight: 22 }
           }
         },
         tooltip: {
@@ -75,7 +92,7 @@ function FlowGraph({ nodes }: { nodes: TrackingFlowNode[] }) {
       source: nodes[index].id,
       target: node.id,
       label: { show: node.id === 'transfer', formatter: '判断', color: '#8c8c8c', fontSize: 11 },
-      lineStyle: { color: '#91caff', width: 2, curveness: 0 }
+      lineStyle: { color: '#91caff', width: 2, curveness: 0.03 }
     }));
 
     return {
@@ -86,14 +103,14 @@ function FlowGraph({ nodes }: { nodes: TrackingFlowNode[] }) {
         type: 'graph',
         layout: 'none',
         roam: true,
-        left: 48,
-        right: 48,
-        top: 70,
-        bottom: 70,
-        zoom: nodes.length > 5 ? 0.78 : 1,
-        scaleLimit: { min: 0.35, max: 2.5 },
+        left: 56,
+        right: 56,
+        top: 78,
+        bottom: 74,
+        zoom: nodes.length > 4 ? 0.72 : 0.92,
+        scaleLimit: { min: 0.45, max: 2.2 },
         edgeSymbol: ['none', 'arrow'],
-        edgeSymbolSize: [0, 12],
+        edgeSymbolSize: [0, 10],
         data: graphNodes,
         links,
         emphasis: { focus: 'adjacency' },
@@ -104,8 +121,8 @@ function FlowGraph({ nodes }: { nodes: TrackingFlowNode[] }) {
   }, [nodes]);
 
   if (!nodes.length) return <Empty description='暂无流程节点' />;
-  return <div style={{ height: 320, width: '100%' }}>
-    <ReactECharts option={option} style={{ height: 320, width: '100%' }} notMerge lazyUpdate />
+  return <div style={{ height: 300, width: '100%' }}>
+    <ReactECharts option={option} style={{ height: 300, width: '100%' }} notMerge lazyUpdate />
   </div>;
 }
 
