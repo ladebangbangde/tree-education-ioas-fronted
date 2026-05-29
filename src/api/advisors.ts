@@ -11,6 +11,7 @@ export type AdvisorProfile = {
   id: number;
   userId: number;
   username?: string;
+  setupCode?: string;
   consultantName: string;
   avatarUrl?: string;
   publicTitle?: string;
