@@ -1,4 +1,4 @@
-import { Avatar, Button, Card, Col, Empty, Form, Input, InputNumber, Modal, Row, Select, Space, Spin, Switch, Tag, Upload, message } from 'antd';
+import { Avatar, Button, Card, Col, Empty, Form, Input, InputNumber, Modal, Result, Row, Select, Space, Spin, Switch, Tag, Upload, message } from 'antd';
 import type { UploadProps } from 'antd';
 import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components';
@@ -22,8 +22,10 @@ export default function AdvisorCenterPage() {
   const [open, setOpen] = useState(false);
   const [uploadingId, setUploadingId] = useState<number>();
   const [form] = Form.useForm<CreateConsultantPayload>();
+  const isSuperAdmin = localStorage.getItem('role') === 'SUPER_ADMIN';
 
   const load = async () => {
+    if (!isSuperAdmin) return;
     setLoading(true);
     try {
       const data = await advisorsApi.list();
@@ -72,6 +74,15 @@ export default function AdvisorCenterPage() {
     }
     return Upload.LIST_IGNORE;
   };
+
+  if (!isSuperAdmin) {
+    return <>
+      <PageHeader title='顾问管理中心' />
+      <Card>
+        <Result status='403' title='无权限访问' subTitle='只有超管可以新增、编辑和管理顾问档案。' />
+      </Card>
+    </>;
+  }
 
   return <>
     <PageHeader title='顾问管理中心' extra={<Space><Button onClick={() => load()}>刷新</Button><Button type='primary' onClick={openCreate}>新增顾问</Button></Space>} />
