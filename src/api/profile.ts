@@ -10,10 +10,19 @@ export interface ConsultantPublicProfilePayload {
   publicBio?: string;
 }
 
+export interface ChangeSetupCodePayload {
+  currentCode: string;
+  newCode: string;
+}
+
 export const profileApi = {
   async me() {
     const res = await client.get('/profile/me');
     return unwrapResponse<any>(res.data);
+  },
+  async changeSetupCode(payload: ChangeSetupCodePayload) {
+    const res = await client.post('/auth/setup-code/change', payload);
+    return unwrapResponse<void>(res.data);
   },
   async updatePublicProfile(payload: ConsultantPublicProfilePayload) {
     const res = await client.put('/profile/consultant/public-profile', payload);
