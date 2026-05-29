@@ -1,29 +1,64 @@
 import client, { unwrapResponse } from './client';
 
+export type ConsultantRegionView = {
+  id: number;
+  regionCode: string;
+  regionName: string;
+  priority: number;
+};
+
 export type AdvisorProfile = {
+  id: number;
   userId: number;
-  name: string;
-  gender?: string;
-  regionCode?: string;
-  regionName?: string;
+  username?: string;
+  consultantName: string;
+  phone?: string;
+  email?: string;
+  teamName?: string;
+  avatarUrl?: string;
   publicTitle?: string;
   publicBio?: string;
-  avatarUrl?: string;
-  priority?: number;
+  regions?: ConsultantRegionView[];
+  enabled: boolean;
+  assignEnabled: boolean;
+  displayOnOfficial: boolean;
+  maxDailyLeads: number;
+  currentDailyLeads: number;
+  sortOrder: number;
+};
+
+export type CreateConsultantPayload = {
+  username: string;
+  password: string;
+  displayName: string;
+  phone?: string;
+  email?: string;
+  teamName?: string;
+  publicTitle?: string;
+  publicBio?: string;
+  regionCodes: string[];
+  enabled: boolean;
+  assignEnabled: boolean;
+  displayOnOfficial: boolean;
+  maxDailyLeads: number;
+  sortOrder: number;
 };
 
 export const advisorsApi = {
   async list() {
-    const res = await client.get('/settings/advisors');
+    const res = await client.get('/settings/consultants');
     return unwrapResponse<AdvisorProfile[]>(res.data);
   },
-  async uploadAvatar(userId: number, file: File) {
+  async create(payload: CreateConsultantPayload) {
+    const res = await client.post('/settings/consultants', payload);
+    return unwrapResponse<AdvisorProfile>(res.data);
+  },
+  async uploadAvatar(consultantId: number, file: File) {
     const form = new FormData();
     form.append('file', file);
-    const res = await client.post(`/settings/advisors/${userId}/avatar`, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    const res = await client.post(`/settings/consultants/${consultantId}/avatar`, form, {
       timeout: 0
     });
-    return unwrapResponse<{ userId: number; avatarUrl: string }>(res.data);
+    return unwrapResponse<{ consultantId: number; avatarUrl: string }>(res.data);
   }
 };
