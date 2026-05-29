@@ -12,9 +12,6 @@ export type AdvisorProfile = {
   userId: number;
   username?: string;
   consultantName: string;
-  phone?: string;
-  email?: string;
-  teamName?: string;
   avatarUrl?: string;
   publicTitle?: string;
   publicBio?: string;
@@ -28,20 +25,8 @@ export type AdvisorProfile = {
 };
 
 export type CreateConsultantPayload = {
-  username: string;
-  password: string;
   displayName: string;
-  phone?: string;
-  email?: string;
-  teamName?: string;
-  publicTitle?: string;
-  publicBio?: string;
   regionCodes: string[];
-  enabled: boolean;
-  assignEnabled: boolean;
-  displayOnOfficial: boolean;
-  maxDailyLeads: number;
-  sortOrder: number;
 };
 
 export const advisorsApi = {
@@ -53,12 +38,8 @@ export const advisorsApi = {
     const res = await client.post('/settings/consultants', payload);
     return unwrapResponse<AdvisorProfile>(res.data);
   },
-  async uploadAvatar(consultantId: number, file: File) {
-    const form = new FormData();
-    form.append('file', file);
-    const res = await client.post(`/settings/consultants/${consultantId}/avatar`, form, {
-      timeout: 0
-    });
-    return unwrapResponse<{ consultantId: number; avatarUrl: string }>(res.data);
+  async remove(consultantId: number) {
+    const res = await client.delete(`/settings/consultants/${consultantId}`);
+    return unwrapResponse<void>(res.data);
   }
 };
