@@ -1,4 +1,4 @@
-import { Avatar, Button, Card, Col, Empty, Form, Input, Modal, Popconfirm, Result, Row, Select, Space, Spin, Tag, message } from 'antd';
+import { Alert, Avatar, Button, Card, Col, Descriptions, Empty, Form, Input, Modal, Popconfirm, Result, Row, Select, Space, Spin, Tag, message } from 'antd';
 import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components';
 import { advisorsApi, type AdvisorProfile, type CreateConsultantPayload } from '@/api/advisors';
@@ -19,6 +19,7 @@ export default function AdvisorCenterPage() {
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [open, setOpen] = useState(false);
+  const [createdAccount, setCreatedAccount] = useState<AdvisorProfile>();
   const [form] = Form.useForm<CreateConsultantPayload>();
   const isSuperAdmin = localStorage.getItem('role') === 'SUPER_ADMIN';
 
@@ -46,12 +47,20 @@ export default function AdvisorCenterPage() {
     setCreating(true);
     try {
       const created = await advisorsApi.create(values);
-      message.success('顾问账号已创建。头像和个人简介由顾问本人登录后自行完善。');
+      message.success('顾问账号已创建，请复制账号信息交给顾问本人登录。');
       setOpen(false);
-      setRows(prev => [created, ...prev]);
+      setCreatedAccount(created);
+      setRows(prev => [{ ...created, setupCode: undefined }, ...prev]);
     } finally {
       setCreating(false);
     }
+  };
+
+  const copyAccount = async () => {
+    if (!createdAccount) return;
+    const text = `登录账号：${createdAccount.username || '-'}\n初始密码：${createdAccount.setupCode || '-'}`;
+    await navigator.clipboard.writeText(text);
+    message.success('账号信息已复制');
   };
 
   const remove = async (item: AdvisorProfile) => {
@@ -102,6 +111,16 @@ export default function AdvisorCenterPage() {
           <Select mode='multiple' options={regionOptions} placeholder='请选择该顾问负责的国家/地区' />
         </Form.Item>
       </Form>
+    </Modal>
+
+    <Modal title='顾问账号已创建' open={Boolean(createdAccount)} onCancel={() => setCreatedAccount(undefined)} footer={<Space><Button onClick={copyAccount}>复制账号信息</Button><Button type='primary' onClick={() => setCreatedAccount(undefined)}>我已保存</Button></Space>}>
+      <Alert type='warning' showIcon style={{ marginBottom: 16 }} message='请立即复制并保存。初始密码只在创建成功后展示一次，刷新页面后不会再次显示。' />
+      <Descriptions bordered column={1} size='small' items={[
+        { label: '顾问姓名', children: createdAccount?.consultantName || '-' },
+        { label: '登录账号', children: createdAccount?.username || '-' },
+        { label: '初始密码', children: createdAccount?.setupCode || '-' },
+        { label: '负责区域', children: createdAccount?.regions?.map(r => r.regionName).join('、') || '-' }
+      ]} />
     </Modal>
   </>;
 }
