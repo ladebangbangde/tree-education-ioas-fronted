@@ -14,6 +14,7 @@ export type AdvisorProfile = {
   setupCode?: string;
   consultantName: string;
   avatarUrl?: string;
+  qrUrl?: string;
   publicTitle?: string;
   publicBio?: string;
   regions?: ConsultantRegionView[];
