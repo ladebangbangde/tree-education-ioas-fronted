@@ -1,6 +1,6 @@
 import client, { normalizePage, unwrapResponse } from './client';
 
-export type LeadTab = 'unassigned' | 'assigned' | 'mine';
+export type LeadTab = 'unassigned' | 'assigned' | 'mine' | 'converted';
 export interface LeadQuery { tab?: LeadTab; keyword?: string; relatedPackageId?: string; operatorId?: string; pageNum?: number; pageSize?: number; }
 export interface LeadPayload { [key: string]: unknown; }
 
