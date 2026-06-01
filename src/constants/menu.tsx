@@ -1,6 +1,7 @@
 import {
   BarChartOutlined,
   DashboardOutlined,
+  DatabaseOutlined,
   FileTextOutlined,
   FolderOpenOutlined,
   ReadOutlined,
@@ -11,13 +12,22 @@ import {
 import type { AppMenuItem } from '@/types';
 
 export const menuConfig: AppMenuItem[] = [
-  { key: 'profile-settings', label: '个人信息设置', path: '/profile/settings', icon: <UserOutlined />, roles: ['MEDIA', 'OPERATOR', 'CONSULTANT'] },
+  { key: 'profile-settings', label: '个人信息设置', path: '/profile/settings', icon: <UserOutlined />, roles: ['MEDIA', 'OPERATOR', 'CONSULTANT', 'DATA', 'ADMINISTRATIVE'] },
   { key: 'media-content', label: '内容管理', path: '/media/content', icon: <ReadOutlined />, roles: ['MEDIA'] },
   { key: 'operator-leads', label: '线索中心', path: '/operator/leads', icon: <TeamOutlined />, roles: ['OPERATOR'] },
   { key: 'media-assets', label: '媒体资源中心', path: '/media-assets', icon: <FolderOpenOutlined />, roles: ['MEDIA', 'OPERATOR'] },
-  { key: 'role-tasks', label: '任务中心', path: '/tasks', icon: <FileTextOutlined />, roles: ['MEDIA', 'OPERATOR', 'CONSULTANT'] },
-  { key: 'role-reports', label: '数据报表', path: '/reports', icon: <BarChartOutlined />, roles: ['MEDIA', 'OPERATOR'] },
-  { key: 'dashboard', label: '工作台', path: '/dashboard', icon: <DashboardOutlined />, roles: ['CONSULTANT'] },
+  { key: 'role-tasks', label: '任务中心', path: '/tasks', icon: <FileTextOutlined />, roles: ['MEDIA', 'OPERATOR', 'CONSULTANT', 'DATA', 'ADMINISTRATIVE'] },
+  { key: 'role-reports', label: '数据报表', path: '/reports', icon: <BarChartOutlined />, roles: ['MEDIA', 'OPERATOR', 'DATA'] },
+  {
+    key: 'data-ops',
+    label: '数据操作',
+    icon: <DatabaseOutlined />,
+    roles: ['DATA', 'SUPER_ADMIN'],
+    children: [
+      { key: 'operation-data', label: '运营数据', path: '/data-ops/operation-data' }
+    ]
+  },
+  { key: 'dashboard', label: '工作台', path: '/dashboard', icon: <DashboardOutlined />, roles: ['CONSULTANT', 'ADMINISTRATIVE'] },
   {
     key: 'leads',
     label: '线索中心',
