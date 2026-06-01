@@ -3,7 +3,7 @@ import { CalendarOutlined, FolderOpenOutlined, PlusOutlined } from '@ant-design/
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '@/components';
-import { dataOpsApi, type DataOpsPackage, type DataOpsPlatformTopic, type PlatformCode } from '@/api/dataOps';
+import { dataOpsApi, type DataOpsPackage, type DataOpsPlatformTopic, type DataOpsUserOption, type PlatformCode } from '@/api/dataOps';
 
 const platformOptions = [
   { label: '抖音', value: 'DOUYIN' },
@@ -14,11 +14,20 @@ function pick<T = any>(row: any, a: string, b: string): T {
   return row?.[a] ?? row?.[b];
 }
 
+function toUserSelectOptions(rows: DataOpsUserOption[]) {
+  return rows.map(row => ({
+    value: row.id,
+    label: `${pick<string>(row, 'display_name', 'displayName') || row.username || row.id}${row.department ? ` · ${row.department}` : ''}`
+  }));
+}
+
 export default function OperationDataPage() {
   const today = dayjs().format('YYYY-MM-DD');
   const [loading, setLoading] = useState(false);
   const [packages, setPackages] = useState<DataOpsPackage[]>([]);
   const [selectedPackage, setSelectedPackage] = useState<DataOpsPackage>();
+  const [operatorUsers, setOperatorUsers] = useState<DataOpsUserOption[]>([]);
+  const [mediaUsers, setMediaUsers] = useState<DataOpsUserOption[]>([]);
   const [packageOpen, setPackageOpen] = useState(false);
   const [topicOpen, setTopicOpen] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
@@ -38,7 +47,16 @@ export default function OperationDataPage() {
     }
   };
 
-  useEffect(() => { loadPackages().catch(() => undefined); }, []);
+  const loadUserOptions = async () => {
+    const [operators, media] = await Promise.all([
+      dataOpsApi.userOptions('OPERATOR'),
+      dataOpsApi.userOptions('MEDIA')
+    ]);
+    setOperatorUsers(operators || []);
+    setMediaUsers(media || []);
+  };
+
+  useEffect(() => { loadPackages().catch(() => undefined); loadUserOptions().catch(() => undefined); }, []);
 
   const treeData = useMemo(() => packages.length ? packages.map(pkg => ({
     title: `${pick<string>(pkg, 'topic_date', 'topicDate') || today}`,
@@ -142,8 +160,8 @@ export default function OperationDataPage() {
       <Modal title='创建主题包' open={packageOpen} onOk={createPackage} onCancel={() => setPackageOpen(false)} destroyOnClose>
         <Form form={packageForm} layout='vertical' initialValues={{ topicDate: today }}>
           <Form.Item name='topicDate' label='创建日期' rules={[{ required: true }]}><Input /></Form.Item>
-          <Form.Item name='operatorUserIds' label='选择运营人员ID' rules={[{ required: true, message: '请输入运营人员ID' }]}><Select mode='tags' placeholder='输入运营人员ID，多选' /></Form.Item>
-          <Form.Item name='mediaUserIds' label='选择媒体人员ID' rules={[{ required: true, message: '请输入媒体人员ID' }]}><Select mode='tags' placeholder='输入媒体人员ID，多选' /></Form.Item>
+          <Form.Item name='operatorUserIds' label='选择运营人员' rules={[{ required: true, message: '请选择运营人员' }]}><Select mode='multiple' placeholder='请选择运营人员' options={toUserSelectOptions(operatorUsers)} /></Form.Item>
+          <Form.Item name='mediaUserIds' label='选择媒体人员' rules={[{ required: true, message: '请选择媒体人员' }]}><Select mode='multiple' placeholder='请选择媒体人员' options={toUserSelectOptions(mediaUsers)} /></Form.Item>
         </Form>
       </Modal>
       <Modal title='创建平台子主题' open={topicOpen} onOk={createTopic} onCancel={() => setTopicOpen(false)} destroyOnClose>
