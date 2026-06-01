@@ -1,6 +1,17 @@
 import client, { unwrapResponse } from './client';
 
 export type PlatformCode = 'DOUYIN' | 'XIAOHONGSHU';
+export type DataOpsUserRole = 'MEDIA' | 'OPERATOR' | 'DATA' | 'ADMINISTRATIVE' | 'CONSULTANT';
+
+export interface DataOpsUserOption {
+  id: number;
+  username?: string;
+  display_name?: string;
+  displayName?: string;
+  department?: string;
+  role_code?: DataOpsUserRole;
+  roleCode?: DataOpsUserRole;
+}
 
 export interface DataOpsPackage {
   id: number;
@@ -58,6 +69,10 @@ export interface DataOpsContent {
 }
 
 export const dataOpsApi = {
+  async userOptions(role: DataOpsUserRole) {
+    const res = await client.get('/data-ops/users', { params: { role } });
+    return unwrapResponse<DataOpsUserOption[]>(res.data);
+  },
   async packages(params?: { date?: string }) {
     const res = await client.get('/data-ops/packages', { params });
     return unwrapResponse<DataOpsPackage[]>(res.data);
