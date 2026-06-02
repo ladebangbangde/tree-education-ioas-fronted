@@ -16,7 +16,20 @@ interface AuthState {
   logout: () => void;
 }
 
-const defaultDepartment = (role: Role) => role === 'SUPER_ADMIN' ? '系统管理部' : role === 'CONSULTANT' ? '咨询中心' : role === 'MEDIA' ? '媒体部' : '运营部';
+const normalizeStoredRole = (role?: string | null): Role => {
+  const value = (role || 'OPERATOR').toUpperCase();
+  return (['SUPER_ADMIN', 'MEDIA', 'OPERATOR', 'CONSULTANT', 'DATA', 'ADMINISTRATIVE'].includes(value) ? value : 'OPERATOR') as Role;
+};
+
+const defaultDepartment = (role: Role) => {
+  if (role === 'SUPER_ADMIN') return '系统管理部';
+  if (role === 'CONSULTANT') return '咨询中心';
+  if (role === 'MEDIA') return '媒体部';
+  if (role === 'DATA') return '数据部';
+  if (role === 'ADMINISTRATIVE') return '行政部';
+  return '运营部';
+};
+
 const clearAuthStorage = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('role');
@@ -33,7 +46,7 @@ const persistAuth = (state: { token?: string | null; role: Role; userName: strin
 };
 
 const token = localStorage.getItem('token');
-const storedRole = (localStorage.getItem('role') as Role) || 'OPERATOR';
+const storedRole = normalizeStoredRole(localStorage.getItem('role'));
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   token,
