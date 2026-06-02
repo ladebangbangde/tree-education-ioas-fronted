@@ -107,6 +107,17 @@ export interface DataOpsRecognitionResponse {
   rawPayload?: Record<string, any>;
 }
 
+export interface DataOpsCurrentTopicGenerateResponse {
+  topicId: number;
+  packageId: number;
+  coverRecognized: number;
+  screenshotsRecognized: number;
+  skipped: number;
+  failed: number;
+  failures?: Array<{ assetId?: number; type?: string; message?: string }>;
+  package?: DataOpsPackage;
+}
+
 export const dataOpsApi = {
   async userOptions(role: DataOpsUserRole) {
     const res = await client.get('/data-ops/users', { params: { role } });
@@ -151,6 +162,10 @@ export const dataOpsApi = {
   async recognizeAsset(assetId: number | string, params?: { platform?: PlatformCode; scene?: string }) {
     const res = await client.post('/data-ops/assets/' + assetId + '/recognize', null, { params, timeout: 0 });
     return unwrapResponse<DataOpsRecognitionResponse>(res.data);
+  },
+  async generateCurrentTopicData(topicId: number | string) {
+    const res = await client.post('/data-ops/platform-topics/' + topicId + '/generate-current-data', null, { timeout: 0 });
+    return unwrapResponse<DataOpsCurrentTopicGenerateResponse>(res.data);
   },
   async recognizeUploadedImage(file: File, params: { platform: PlatformCode; scene: string }) {
     const form = new FormData();
