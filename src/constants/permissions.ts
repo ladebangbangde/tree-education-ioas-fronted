@@ -4,12 +4,12 @@ import type { Role } from '@/types';
 export const roles: Role[] = ['SUPER_ADMIN', 'MEDIA', 'OPERATOR', 'CONSULTANT', 'DATA', 'ADMINISTRATIVE'];
 
 export const roleLabels: Record<Role, string> = {
-  SUPER_ADMIN: '超管',
-  MEDIA: '媒体',
-  OPERATOR: '运营',
-  CONSULTANT: '顾问',
-  DATA: '数据员',
-  ADMINISTRATIVE: '行政'
+  SUPER_ADMIN: 'Super Admin',
+  MEDIA: 'Media',
+  OPERATOR: 'Operator',
+  CONSULTANT: 'Consultant',
+  DATA: 'Data Operator',
+  ADMINISTRATIVE: 'Administrative'
 };
 
 export const defaultRouteByRole: Record<Role, string> = {
@@ -57,7 +57,7 @@ const allRoutes = [
 ] as const;
 
 export const rolePageMatrix: Record<Role, string[]> = {
-  SUPER_ADMIN: [...superAdminGovernanceRoutes, '/dashboard', '/data-ops/operation-data', '/tasks', '/reports'],
+  SUPER_ADMIN: [...superAdminGovernanceRoutes],
   MEDIA: ['/profile/settings','/media/content','/media-assets','/tasks','/reports'],
   OPERATOR: ['/profile/settings','/operator/leads','/media-assets','/tasks','/reports'],
   CONSULTANT: ['/profile/settings','/tasks','/dashboard','/leads/list','/leads/detail/:id','/leads/follow','/students/list','/students/detail/:id','/applications/kanban','/applications/detail/:id','/applications/stage/:stage','/applications/materials','/applications/offers','/applications/visa','/knowledge/library'],
@@ -71,8 +71,8 @@ export const routePermissionMap = allRoutes.reduce((acc, route) => {
 }, {} as Record<string, Role[]>);
 
 export const roleButtonMatrix: Record<Role, ButtonAction[]> = {
-  SUPER_ADMIN: ['view','new','edit','delete','permission','resetPassword','config','log','upload','createDataPackage','createPlatformTopic','uploadCover','uploadScreenshot','confirmDataContent','generateDailyReport','downloadReport','retry'],
-  MEDIA: ['view','new','createPackage','upload','download','preview','edit','editOwnContent','delete','deleteOwnContent','bindOperator','retry','restore','file'],
+  SUPER_ADMIN: ['view','new','edit','permission','resetPassword','config','log'],
+  MEDIA: ['view','new','createPackage','upload','download','preview','edit','editOwnContent','deleteOwnContent','bindOperator','retry','restore','file'],
   CONSULTANT: ['view','edit','follow','convert','file','log','stage','advisor','more','upload'],
   OPERATOR: ['view','download','preview','file','log','generateLead','more'],
   DATA: ['view','new','createDataPackage','createPlatformTopic','upload','uploadCover','uploadScreenshot','confirmDataContent','generateDailyReport','downloadReport','retry','file','log'],
