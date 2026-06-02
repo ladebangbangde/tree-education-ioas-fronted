@@ -61,8 +61,14 @@ export interface DataOpsPlatformTopic {
   platformName?: string;
   sub_topic_name?: string;
   subTopicName?: string;
+  cover_asset_id?: number;
+  coverAssetId?: number;
   cover_image_url?: string;
   coverImageUrl?: string;
+  ocr_title?: string;
+  ocrTitle?: string;
+  ocr_account_name?: string;
+  ocrAccountName?: string;
   status?: string;
   ocr_status?: string;
   ocrStatus?: string;
@@ -89,6 +95,18 @@ export interface DataOpsContent {
   assets?: DataOpsAsset[];
 }
 
+export interface DataOpsRecognitionResponse {
+  requestId?: string;
+  engine?: string;
+  platform?: string;
+  scene?: string;
+  rawText?: string;
+  result?: Record<string, any>;
+  warnings?: string[];
+  elapsedMs?: number;
+  rawPayload?: Record<string, any>;
+}
+
 export const dataOpsApi = {
   async userOptions(role: DataOpsUserRole) {
     const res = await client.get('/data-ops/users', { params: { role } });
@@ -103,32 +121,36 @@ export const dataOpsApi = {
     return unwrapResponse<DataOpsPackage>(res.data);
   },
   async packageDetail(id: number | string) {
-    const res = await client.get(`/data-ops/packages/${id}`);
+    const res = await client.get('/data-ops/packages/' + id);
     return unwrapResponse<DataOpsPackage>(res.data);
   },
   async createPlatformTopic(packageId: number | string, payload: { platformCode: PlatformCode; subTopicName?: string }) {
-    const res = await client.post(`/data-ops/packages/${packageId}/platform-topics`, payload);
+    const res = await client.post('/data-ops/packages/' + packageId + '/platform-topics', payload);
     return unwrapResponse<DataOpsPlatformTopic>(res.data);
   },
   async platformTopics(packageId: number | string) {
-    const res = await client.get(`/data-ops/packages/${packageId}/platform-topics`);
+    const res = await client.get('/data-ops/packages/' + packageId + '/platform-topics');
     return unwrapResponse<DataOpsPlatformTopic[]>(res.data);
   },
   async uploadCover(topicId: number | string, file: File) {
     const form = new FormData();
     form.append('file', file);
-    const res = await client.post(`/data-ops/platform-topics/${topicId}/cover`, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
+    const res = await client.post('/data-ops/platform-topics/' + topicId + '/cover', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
     return unwrapResponse<DataOpsPlatformTopic>(res.data);
   },
   async confirmContent(topicId: number | string, payload: { contentTitle?: string; contentSummary?: string; contentDate?: string }) {
-    const res = await client.post(`/data-ops/platform-topics/${topicId}/contents/confirm`, payload);
+    const res = await client.post('/data-ops/platform-topics/' + topicId + '/contents/confirm', payload);
     return unwrapResponse<DataOpsContent>(res.data);
   },
   async uploadScreenshots(contentId: number | string, files: File[]) {
     const form = new FormData();
     files.forEach(file => form.append('files', file));
-    const res = await client.post(`/data-ops/contents/${contentId}/screenshots`, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
+    const res = await client.post('/data-ops/contents/' + contentId + '/screenshots', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
     return unwrapResponse<DataOpsContent>(res.data);
+  },
+  async recognizeAsset(assetId: number | string, params?: { platform?: PlatformCode; scene?: string }) {
+    const res = await client.post('/data-ops/assets/' + assetId + '/recognize', null, { params, timeout: 0 });
+    return unwrapResponse<DataOpsRecognitionResponse>(res.data);
   },
   async generateDailyReport(payload: { date?: string }) {
     const res = await client.post('/data-ops/reports/daily', payload);
