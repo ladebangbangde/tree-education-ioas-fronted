@@ -13,12 +13,16 @@ export const tasksApi = {
     const res = await client.get('/tasks/consultant', { params: { pageNum: 1, pageSize: 500 }, silent: options?.quiet });
     return normalizePage<any>(res.data).records;
   },
+  async data(options?: { quiet?: boolean }) {
+    const res = await client.get('/tasks/data', { params: { pageNum: 1, pageSize: 500 }, silent: options?.quiet });
+    return normalizePage<any>(res.data).records;
+  },
   async update(id: string, payload: Record<string, unknown>) {
-    const res = await client.patch(`/tasks/${id}`, payload);
+    const res = await client.patch('/tasks/' + id, payload);
     return unwrapResponse<any>(res.data);
   },
   async cancel(id: string) {
-    const res = await client.post(`/tasks/${id}/cancel`);
+    const res = await client.post('/tasks/' + id + '/cancel');
     return unwrapResponse<any>(res.data);
   },
   async batchDelete(taskIds: Array<string | number>, purgeFiles = true) {
@@ -26,7 +30,7 @@ export const tasksApi = {
     return unwrapResponse<any>(res.data);
   },
   async logs(id: string, lines = 200, options?: { quiet?: boolean }) {
-    const res = await client.get(`/tasks/${id}/logs`, { params: { lines }, silent: options?.quiet });
+    const res = await client.get('/tasks/' + id + '/logs', { params: { lines }, silent: options?.quiet });
     return unwrapResponse<string[]>(res.data);
   }
 };
