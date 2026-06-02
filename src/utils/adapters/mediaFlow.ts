@@ -14,7 +14,7 @@ const optionalStringValue = (...values: unknown[]) => {
 
 const normalizeRole = (role?: string, fallback: Role = 'OPERATOR'): Role => {
   const value = (role || fallback).toUpperCase();
-  return (['SUPER_ADMIN', 'MEDIA', 'OPERATOR', 'CONSULTANT'].includes(value) ? value : fallback) as Role;
+  return (['SUPER_ADMIN', 'MEDIA', 'OPERATOR', 'CONSULTANT', 'DATA', 'ADMINISTRATIVE'].includes(value) ? value : fallback) as Role;
 };
 
 export function normalizeAuthUser(dto: any, fallbackRole: Role = 'OPERATOR') {
@@ -22,7 +22,7 @@ export function normalizeAuthUser(dto: any, fallbackRole: Role = 'OPERATOR') {
   return {
     token: stringValue(dto?.token, dto?.accessToken, dto?.access_token, dto?.jwt),
     id: stringValue(user?.id, user?.userId, dto?.id, dto?.userId),
-    role: normalizeRole(stringValue(user?.role, dto?.role), fallbackRole),
+    role: normalizeRole(stringValue(user?.role, user?.roleCode, dto?.role, dto?.roleCode), fallbackRole),
     userName: stringValue(user?.userName, user?.username, user?.name, dto?.userName, dto?.username, '用户'),
     department: stringValue(user?.department, user?.deptName, dto?.department)
   };
