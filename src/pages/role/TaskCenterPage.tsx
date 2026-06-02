@@ -28,7 +28,10 @@ const taskTypeMeta: Record<string, { text: string; color: string }> = {
   media_upload: { text: '素材上传任务', color: 'purple' },
   operator_lead_generate: { text: '线索生成任务', color: 'cyan' },
   consultant_qr_upload: { text: '二维码上传任务', color: 'green' },
-  consultant_region_change: { text: '地区变更申请', color: 'gold' }
+  consultant_region_change: { text: '地区变更申请', color: 'gold' },
+  data_cover_upload: { text: '数据封面上传', color: 'geekblue' },
+  data_screenshot_upload: { text: '数据截图上传', color: 'magenta' },
+  data_daily_report_generate: { text: '数据日报生成', color: 'lime' }
 };
 
 const formatDateTime = (value?: string) => value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
@@ -42,17 +45,18 @@ const formatBytes = (value?: number) => {
   if (size >= 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${size} B`;
 };
-type TaskView = 'media' | 'operator' | 'consultant';
+type TaskView = 'media' | 'operator' | 'consultant' | 'data';
 
 export default function TaskCenterPage(){
   const role = useAuthStore(s => s.role);
   const userId = useAuthStore(s => s.id);
   const token = useAuthStore(s => s.token);
   const [adminView, setAdminView] = useState<TaskView>('media');
-  const view: TaskView = role === 'OPERATOR' ? 'operator' : role === 'CONSULTANT' ? 'consultant' : role === 'SUPER_ADMIN' ? adminView : 'media';
+  const view: TaskView = role === 'OPERATOR' ? 'operator' : role === 'CONSULTANT' ? 'consultant' : role === 'DATA' ? 'data' : role === 'SUPER_ADMIN' ? adminView : 'media';
   const isMedia = view === 'media';
   const isOperator = view === 'operator';
   const isConsultant = view === 'consultant';
+  const isData = view === 'data';
   const [data, setData] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [logTask, setLogTask] = useState<Task>();
@@ -77,9 +81,9 @@ export default function TaskCenterPage(){
     listLoadingRef.current = true;
     if (!quiet) setLoading(true);
     try {
-      const taskRows = isConsultant ? await tasksApi.consultant({ quiet }) : isMedia ? await tasksApi.media({ quiet }) : await tasksApi.operator({ quiet });
+      const taskRows = isConsultant ? await tasksApi.consultant({ quiet }) : isData ? await tasksApi.data({ quiet }) : isMedia ? await tasksApi.media({ quiet }) : await tasksApi.operator({ quiet });
       if (scopeRef.current !== requestScope) return;
-      const rows = (taskRows || []).map(row => adaptTask(row, view === 'operator' ? 'operator' : 'media'));
+      const rows = (taskRows || []).map(row => adaptTask(row, view === 'operator' ? 'operator' : view === 'data' ? 'data' : 'media'));
       const visibleRows = role === 'SUPER_ADMIN' ? rows : rows.filter(row => userId && row.assigneeId === userId);
       setData(visibleRows);
       setSelectedRowKeys(prev => prev.filter(key => visibleRows.some(row => String(row.id) === String(key) && canDeleteTask(row))));
@@ -87,7 +91,7 @@ export default function TaskCenterPage(){
       listLoadingRef.current = false;
       if (!quiet && scopeRef.current === requestScope) setLoading(false);
     }
-  }, [authScope, isConsultant, isMedia, role, userId, view]);
+  }, [authScope, isConsultant, isData, isMedia, role, userId, view]);
 
   useEffect(() => { loadData().catch(() => undefined); }, [loadData]);
   useEffect(() => {
@@ -159,7 +163,7 @@ export default function TaskCenterPage(){
   const common = [
     { title: '任务ID', dataIndex: 'id', width: 90 },
     { title: '任务标签', width: 150, render: (_: unknown, r: Task) => renderTaskTypeTag(r) },
-    { title: isConsultant ? '关联对象' : '主题名称', width: 220, render: (_: unknown, r: Task) => isConsultant ? r.fileName || r.topicName || '-' : r.topicName || `主题包 #${r.relatedPackageId || '-'}` },
+    { title: isConsultant ? '关联对象' : isData ? '数据对象' : '主题名称', width: 220, render: (_: unknown, r: Task) => isConsultant ? r.fileName || r.topicName || '-' : isData ? r.fileName || r.topicName || `数据包 #${r.relatedPackageId || '-'}` : r.topicName || `主题包 #${r.relatedPackageId || '-'}` },
     { title: '任务名称', width: 300, render: (_: unknown, r: Task) => r.title || '-' },
     { title: isMedia ? '绑定运营' : '负责人', width: 140, render: (_: unknown, r: Task) => isMedia ? r.operatorName || '-' : r.assigneeName || '-' },
     { title: '状态', dataIndex: 'status', width: 110, render: renderStatus },
@@ -176,20 +180,20 @@ export default function TaskCenterPage(){
     { title: '操作', fixed: 'right' as const, width: isOperator ? 180 : 120, render: (_: unknown, r: Task) => <Space>
       {isOperator && r.status !== 'completed' && <Button type='link' onClick={() => patchTask(r, 'process')}>去生成线索</Button>}
       <Button type='link' onClick={() => openLogs(r)}>日志</Button>
-      {!isTerminal(r.status) && !isConsultant && <Popconfirm title='取消后该任务会进入已取消状态，是否继续？' onConfirm={() => cancelTask(r)}><Button type='link' danger>取消</Button></Popconfirm>}
+      {!isTerminal(r.status) && !isConsultant && !isData && <Popconfirm title='取消后该任务会进入已取消状态，是否继续？' onConfirm={() => cancelTask(r)}><Button type='link' danger>取消</Button></Popconfirm>}
     </Space> }
   ];
 
   const extra = <Space>
-    {role === 'SUPER_ADMIN' && <Radio.Group size='small' value={adminView} onChange={event => { setAdminView(event.target.value); setData([]); setSelectedRowKeys([]); }} options={[{ label: '媒体任务', value: 'media' }, { label: '运营任务', value: 'operator' }, { label: '顾问任务', value: 'consultant' }]} />}
-    <span>{isConsultant ? `二维码上传 / 地区变更任务，3秒自动刷新｜进行中 ${activeCount} 个` : isMedia ? `主题创建 / 素材上传任务，3秒自动刷新｜进行中 ${activeCount} 个` : `运营任务，3秒自动刷新｜进行中 ${activeCount} 个`}</span>
+    {role === 'SUPER_ADMIN' && <Radio.Group size='small' value={adminView} onChange={event => { setAdminView(event.target.value); setData([]); setSelectedRowKeys([]); }} options={[{ label: '媒体任务', value: 'media' }, { label: '运营任务', value: 'operator' }, { label: '顾问任务', value: 'consultant' }, { label: '数据任务', value: 'data' }]} />}
+    <span>{isData ? `封面 / 数据截图 / 日报任务，3秒自动刷新｜进行中 ${activeCount} 个` : isConsultant ? `二维码上传 / 地区变更任务，3秒自动刷新｜进行中 ${activeCount} 个` : isMedia ? `主题创建 / 素材上传任务，3秒自动刷新｜进行中 ${activeCount} 个` : `运营任务，3秒自动刷新｜进行中 ${activeCount} 个`}</span>
     <Popconfirm title={`确认永久删除选中的 ${selectedRowKeys.length} 个任务？会同步删除已绑定的 MinIO 对象、资产记录和任务日志。进行中任务不可删除。`} disabled={!selectedRowKeys.length} onConfirm={batchDeleteTasks}>
       <Button danger disabled={!selectedRowKeys.length}>批量删除</Button>
     </Popconfirm>
   </Space>;
 
   return <>
-    <PageHeader title={isConsultant ? '任务中心｜顾问任务' : isMedia ? '任务中心｜媒体任务' : '任务中心｜线索生成任务'} extra={extra} />
+    <PageHeader title={isData ? '任务中心｜数据任务' : isConsultant ? '任务中心｜顾问任务' : isMedia ? '任务中心｜媒体任务' : '任务中心｜线索生成任务'} extra={extra} />
     <DataTable
       loading={loading}
       rowKey='id'
