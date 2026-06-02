@@ -1,6 +1,6 @@
 import { ClearOutlined, CloseOutlined, PauseCircleOutlined, PlayCircleOutlined, ProfileOutlined } from '@ant-design/icons';
 import { Alert, Badge, Button, Card, Progress, Space, Tag, Tooltip, Typography } from 'antd';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUploadManager } from '@/hooks/useUploadManager';
 import type { GlobalUploadItem, GlobalUploadStatus, RecoverableUploadSession } from '@/services/uploadManager';
@@ -16,6 +16,8 @@ const statusMeta: Record<GlobalUploadStatus, { text: string; color: string; prog
   paused: { text: '已暂停', color: 'gold', progress: 'normal' }
 };
 
+type DragPosition = { x: number; y: number };
+
 const formatBytes = (value?: number) => {
   const size = Number(value || 0);
   if (!size) return '-';
@@ -27,11 +29,32 @@ const formatBytes = (value?: number) => {
 const formatSpeed = (value?: number) => value ? `${formatBytes(value)}/s` : '-';
 const isTerminal = (item: GlobalUploadItem) => ['success', 'failed', 'cancelled'].includes(item.status);
 
+function defaultPosition(collapsed: boolean): DragPosition {
+  if (typeof window === 'undefined') return { x: 24, y: 24 };
+  const width = collapsed ? 190 : 440;
+  return { x: Math.max(16, window.innerWidth - width - 24), y: Math.max(72, window.innerHeight - 280) };
+}
+
+function clampPosition(next: DragPosition, collapsed: boolean): DragPosition {
+  if (typeof window === 'undefined') return next;
+  const width = collapsed ? 190 : 440;
+  return {
+    x: Math.min(Math.max(16, next.x), Math.max(16, window.innerWidth - width - 16)),
+    y: Math.min(Math.max(72, next.y), Math.max(72, window.innerHeight - 80))
+  };
+}
+
 export default function GlobalUploadPanel() {
   const nav = useNavigate();
   const { items, uploadManager } = useUploadManager();
   const [collapsed, setCollapsed] = useState(false);
   const [recoverable, setRecoverable] = useState<RecoverableUploadSession[]>([]);
+  const [position, setPosition] = useState<DragPosition>(() => {
+    const saved = localStorage.getItem('globalUploadCenterPosition');
+    if (!saved) return defaultPosition(false);
+    try { return clampPosition(JSON.parse(saved), false); } catch { return defaultPosition(false); }
+  });
+  const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
   const activeCount = useMemo(() => items.filter(item => ['queued', 'uploading', 'processing'].includes(item.status)).length, [items]);
 
   useEffect(() => {
@@ -41,12 +64,46 @@ export default function GlobalUploadPanel() {
     return () => window.clearInterval(timer);
   }, [uploadManager]);
 
+  useEffect(() => {
+    setPosition(current => clampPosition(current, collapsed));
+  }, [collapsed]);
+
+  useEffect(() => {
+    localStorage.setItem('globalUploadCenterPosition', JSON.stringify(position));
+  }, [position]);
+
+  useEffect(() => {
+    const onResize = () => setPosition(current => clampPosition(current, collapsed));
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [collapsed]);
+
+  const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.closest('button,a,input,textarea,.ant-btn,.ant-dropdown-trigger')) return;
+    event.preventDefault();
+    dragRef.current = { startX: event.clientX, startY: event.clientY, baseX: position.x, baseY: position.y };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    const dx = event.clientX - dragRef.current.startX;
+    const dy = event.clientY - dragRef.current.startY;
+    setPosition(clampPosition({ x: dragRef.current.baseX + dx, y: dragRef.current.baseY + dy }, collapsed));
+  };
+
+  const stopDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    dragRef.current = null;
+    try { event.currentTarget.releasePointerCapture(event.pointerId); } catch { undefined; }
+  };
+
   if (!items.length && !recoverable.length) return null;
 
-  return <div style={{ position: 'fixed', right: 24, bottom: 24, zIndex: 1000, width: collapsed ? 190 : 440 }}>
+  return <div className='global-upload-center' style={{ position: 'fixed', left: position.x, top: position.y, zIndex: 1000, width: collapsed ? 190 : 440 }}>
     <Card
       size='small'
-      title={<Space><Badge count={activeCount} showZero={false} />全局上传中心</Space>}
+      title={<div className='global-upload-drag-handle' onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag}><Space><Badge count={activeCount} showZero={false} />全局上传中心</Space><Typography.Text type='secondary'>拖动此处移动</Typography.Text></div>}
       extra={<Space>
         <Button size='small' type='text' onClick={() => nav('/tasks')}>任务中心</Button>
         <Button size='small' type='text' onClick={() => setCollapsed(!collapsed)}>{collapsed ? '展开' : '收起'}</Button>
