@@ -1,15 +1,20 @@
 import { Button, Card, Col, Empty, Form, Input, Modal, Row, Select, Space, Statistic, Table, Tag, Tree, Upload, message } from 'antd';
-import type { UploadFile } from 'antd';
 import { CalendarOutlined, CloudUploadOutlined, FolderOpenOutlined, PlusOutlined, ScanOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '@/components';
 import { dataOpsApi, type DataOpsContent, type DataOpsPackage, type DataOpsPlatformTopic, type DataOpsUserOption, type PlatformCode } from '@/api/dataOps';
 
-const platformOptions = [
+const platformOptions: { label: string; value: PlatformCode }[] = [
   { label: '抖音', value: 'DOUYIN' },
   { label: '小红书', value: 'XIAOHONGSHU' }
 ];
+
+const platformLabelMap: Record<string, string> = {
+  DOUYIN: '抖音',
+  XIAOHONGSHU: '小红书',
+  WECHAT_CHANNEL: '视频号'
+};
 
 function pick<T = any>(row: any, a: string, b: string): T {
   return row?.[a] ?? row?.[b];
@@ -41,13 +46,34 @@ function topicDisplayName(topic?: DataOpsPlatformTopic) {
   return pick<string>(topic, 'ocr_title', 'ocrTitle') || pick<string>(topic, 'sub_topic_name', 'subTopicName') || '';
 }
 
+function contentTopicId(content?: DataOpsContent) {
+  return pick<number>(content, 'platform_topic_id', 'platformTopicId');
+}
+
+function contentPlatform(content?: DataOpsContent): PlatformCode | undefined {
+  return pick<PlatformCode>(content, 'platform_code', 'platformCode');
+}
+
+function setFlag<T>(setter: React.Dispatch<React.SetStateAction<Set<T>>>, value: T, enabled: boolean) {
+  setter(prev => {
+    const next = new Set(prev);
+    if (enabled) next.add(value);
+    else next.delete(value);
+    return next;
+  });
+}
+
 export default function OperationDataPage() {
   const today = dayjs().format('YYYY-MM-DD');
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [recognizingTopicId, setRecognizingTopicId] = useState<number>();
+  const [reportGenerating, setReportGenerating] = useState(false);
+  const [coverUploadingIds, setCoverUploadingIds] = useState<Set<number>>(new Set());
+  const [recognizingTopicIds, setRecognizingTopicIds] = useState<Set<number>>(new Set());
+  const [screenshotUploadingContentIds, setScreenshotUploadingContentIds] = useState<Set<number>>(new Set());
   const [packages, setPackages] = useState<DataOpsPackage[]>([]);
   const [selectedPackage, setSelectedPackage] = useState<DataOpsPackage>();
+  const [selectedPlatform, setSelectedPlatform] = useState<PlatformCode>('DOUYIN');
+  const [selectedTopicId, setSelectedTopicId] = useState<number>();
   const [operatorUsers, setOperatorUsers] = useState<DataOpsUserOption[]>([]);
   const [mediaUsers, setMediaUsers] = useState<DataOpsUserOption[]>([]);
   const [packageOpen, setPackageOpen] = useState(false);
@@ -93,26 +119,54 @@ export default function OperationDataPage() {
 
   useEffect(() => { loadPackages().catch(() => undefined); loadUserOptions().catch(() => undefined); }, []);
 
-  const treeData = useMemo(() => packages.length ? packages.map(pkg => ({
-    title: `${pick<string>(pkg, 'topic_date', 'topicDate') || today}`,
-    key: `date-${pkg.id}`,
-    icon: <CalendarOutlined />,
-    children: [{
-      title: pick<string>(pkg, 'display_name', 'displayName') || '数据主题包',
-      key: `package-${pkg.id}`,
-      icon: <FolderOpenOutlined />,
-      children: [
-        { title: '封面识别主题', key: `cover-${pkg.id}` },
-        { title: '小红书', key: `xhs-${pkg.id}` },
-        { title: '抖音', key: `douyin-${pkg.id}` }
-      ]
-    }]
-  })) : [{ title: today, key: today, icon: <CalendarOutlined />, children: [] }], [packages, today]);
-
   const platformTopics = selectedPackage?.platformTopics || [];
   const contents = selectedPackage?.contents || [];
-  const screenshotCount = contents.reduce((sum, item: any) => sum + Number(pick(item, 'screenshot_count', 'screenshotCount') || 0), 0);
-  const failedCount = contents.filter((item: any) => item.status === 'failed' || pick(item, 'recognition_status', 'recognitionStatus') === 'failed').length;
+  const selectedPlatformTopics = useMemo(
+    () => platformTopics.filter(topic => topicPlatform(topic) === selectedPlatform),
+    [platformTopics, selectedPlatform]
+  );
+  const selectedTopic = useMemo(
+    () => selectedPlatformTopics.find(topic => topic.id === selectedTopicId),
+    [selectedPlatformTopics, selectedTopicId]
+  );
+  const selectedContents = useMemo(() => {
+    if (selectedTopicId) return contents.filter(content => contentTopicId(content) === selectedTopicId);
+    return contents.filter(content => contentPlatform(content) === selectedPlatform);
+  }, [contents, selectedPlatform, selectedTopicId]);
+
+  useEffect(() => {
+    if (!selectedPlatformTopics.length) {
+      setSelectedTopicId(undefined);
+      return;
+    }
+    if (!selectedTopicId || !selectedPlatformTopics.some(topic => topic.id === selectedTopicId)) {
+      setSelectedTopicId(selectedPlatformTopics[0].id);
+    }
+  }, [selectedPlatformTopics, selectedTopicId]);
+
+  const treeData = useMemo(() => packages.length ? packages.map(pkg => {
+    const topics = pkg.platformTopics || [];
+    const douyinCount = topics.filter(topic => topicPlatform(topic) === 'DOUYIN').length;
+    const xhsCount = topics.filter(topic => topicPlatform(topic) === 'XIAOHONGSHU').length;
+    return {
+      title: `${pick<string>(pkg, 'topic_date', 'topicDate') || today}`,
+      key: `date-${pkg.id}`,
+      icon: <CalendarOutlined />,
+      children: [{
+        title: pick<string>(pkg, 'display_name', 'displayName') || '数据主题包',
+        key: `package-${pkg.id}`,
+        icon: <FolderOpenOutlined />,
+        children: [
+          { title: `抖音 (${douyinCount})`, key: `platform-${pkg.id}-DOUYIN` },
+          { title: `小红书 (${xhsCount})`, key: `platform-${pkg.id}-XIAOHONGSHU` }
+        ]
+      }]
+    };
+  }) : [{ title: today, key: today, icon: <CalendarOutlined />, children: [] }], [packages, today]);
+
+  const selectedTreeKeys = selectedPackage ? [`platform-${selectedPackage.id}-${selectedPlatform}`] : [];
+  const screenshotCount = selectedContents.reduce((sum, item: any) => sum + Number(pick(item, 'screenshot_count', 'screenshotCount') || 0), 0);
+  const failedCount = selectedContents.filter((item: any) => item.status === 'failed' || pick(item, 'recognition_status', 'recognitionStatus') === 'failed').length;
 
   const createPackage = async () => {
     const values = await packageForm.validateFields();
@@ -126,20 +180,30 @@ export default function OperationDataPage() {
     packageForm.resetFields();
     await loadPackages();
     setSelectedPackage(created);
+    setSelectedPlatform('DOUYIN');
   };
 
   const createTopic = async () => {
     if (!selectedPackage?.id) return message.warning('请先选择主题包');
     const values = await topicForm.validateFields();
-    await dataOpsApi.createPlatformTopic(selectedPackage.id, { platformCode: values.platformCode, subTopicName: values.subTopicName });
+    const platformCode = values.platformCode as PlatformCode;
+    await dataOpsApi.createPlatformTopic(selectedPackage.id, { platformCode, subTopicName: values.subTopicName });
     message.success('平台子主题已创建');
     setTopicOpen(false);
     topicForm.resetFields();
+    setSelectedPlatform(platformCode);
     await refreshPackageDetail(selectedPackage.id);
+  };
+
+  const openTopicModal = (platformCode: PlatformCode) => {
+    topicForm.setFieldValue('platformCode', platformCode);
+    setSelectedPlatform(platformCode);
+    setTopicOpen(true);
   };
 
   const openConfirmContent = (topic: DataOpsPlatformTopic) => {
     setActiveTopic(topic);
+    setSelectedTopicId(topic.id);
     contentForm.setFieldsValue({
       contentTitle: topicDisplayName(topic),
       contentDate: today
@@ -154,6 +218,7 @@ export default function OperationDataPage() {
     message.success('主题内容已确认创建');
     setContentOpen(false);
     contentForm.resetFields();
+    setSelectedTopicId(activeTopic.id);
     await refreshPackageDetail();
   };
 
@@ -161,85 +226,143 @@ export default function OperationDataPage() {
     const assetId = topicCoverAssetId(topic);
     if (!assetId) return message.warning('请先上传封面');
     const platform = topicPlatform(topic);
-    setRecognizingTopicId(topic.id);
+    setFlag(setRecognizingTopicIds, topic.id, true);
     try {
       const result = await dataOpsApi.recognizeAsset(assetId, { platform, scene: 'CONTENT_DETAIL' });
       const title = result?.result?.contentTitle || result?.result?.topicName || result?.result?.title || result?.result?.name;
       message.success(title ? `封面识别成功：${title}` : '封面识别成功');
+      setSelectedTopicId(topic.id);
       await refreshPackageDetail();
     } finally {
-      setRecognizingTopicId(undefined);
+      setFlag(setRecognizingTopicIds, topic.id, false);
     }
   };
 
   const uploadCover = async (topic: DataOpsPlatformTopic, file: File) => {
-    setUploading(true);
+    setSelectedTopicId(topic.id);
+    setFlag(setCoverUploadingIds, topic.id, true);
     try {
       const uploaded = await dataOpsApi.uploadCover(topic.id, file);
       message.success('封面上传成功，开始识别封面标题');
       await recognizeCover(uploaded || topic);
     } finally {
-      setUploading(false);
+      setFlag(setCoverUploadingIds, topic.id, false);
     }
   };
 
-  const uploadScreenshots = async (content: DataOpsContent, files: UploadFile[]) => {
-    const rawFiles = files.map(item => item.originFileObj).filter(Boolean) as File[];
+  const uploadScreenshots = async (content: DataOpsContent, files: File[]) => {
+    const rawFiles = files.filter(Boolean);
     if (!rawFiles.length) return message.warning('请选择数据截图');
-    setUploading(true);
+    setFlag(setScreenshotUploadingContentIds, content.id, true);
     try {
       await dataOpsApi.uploadScreenshots(content.id, rawFiles);
       message.success('数据截图上传成功，等待识别');
       await refreshPackageDetail();
     } finally {
-      setUploading(false);
+      setFlag(setScreenshotUploadingContentIds, content.id, false);
     }
   };
 
   const generateReport = async () => {
-    await dataOpsApi.generateDailyReport({ date: today });
-    message.success('当日报告已生成');
-    await loadPackages();
+    setReportGenerating(true);
+    try {
+      await dataOpsApi.generateDailyReport({ date: today });
+      message.success('当日报告已生成');
+      await loadPackages();
+    } finally {
+      setReportGenerating(false);
+    }
+  };
+
+  const handleTreeSelect = (keys: React.Key[]) => {
+    const key = String(keys?.[0] || '');
+    if (!key) return;
+    if (key.startsWith('platform-')) {
+      const [, packageId, platform] = key.split('-');
+      const pkg = packages.find(item => item.id === Number(packageId));
+      if (pkg) setSelectedPackage(pkg);
+      setSelectedPlatform(platform as PlatformCode);
+      return;
+    }
+    if (key.startsWith('package-')) {
+      const id = Number(key.replace('package-', ''));
+      const pkg = packages.find(item => item.id === id);
+      if (pkg) setSelectedPackage(pkg);
+    }
   };
 
   return (
     <>
-      <PageHeader title='运营数据' extra={<Space><Button type='primary' icon={<PlusOutlined />} onClick={() => setPackageOpen(true)}>创建主题包</Button><Button onClick={generateReport}>生成当日报告</Button></Space>} />
+      <PageHeader title='运营数据' extra={<Space><Button type='primary' icon={<PlusOutlined />} onClick={() => setPackageOpen(true)}>创建主题包</Button><Button loading={reportGenerating} onClick={generateReport}>生成当日报告</Button></Space>} />
       <Row gutter={[16,16]}>
-        <Col xs={24} sm={12} lg={6}><Card><Statistic title='今日主题包' value={packages.length} /></Card></Col>
-        <Col xs={24} sm={12} lg={6}><Card><Statistic title='主题内容' value={contents.length} /></Card></Col>
-        <Col xs={24} sm={12} lg={6}><Card><Statistic title='上传图片' value={screenshotCount} /></Card></Col>
-        <Col xs={24} sm={12} lg={6}><Card><Statistic title='失败任务' value={failedCount} /></Card></Col>
+        <Col xs={24} sm={12} lg={6}><Card><Statistic title='当前平台子主题' value={selectedPlatformTopics.length} /></Card></Col>
+        <Col xs={24} sm={12} lg={6}><Card><Statistic title='当前主题内容' value={selectedContents.length} /></Card></Col>
+        <Col xs={24} sm={12} lg={6}><Card><Statistic title='当前上传图片' value={screenshotCount} /></Card></Col>
+        <Col xs={24} sm={12} lg={6}><Card><Statistic title='当前失败任务' value={failedCount} /></Card></Col>
       </Row>
       <Row gutter={[16,16]} className='mt12'>
-        <Col xs={24} lg={7}><Card title='左侧文件路径'><Tree showIcon defaultExpandAll treeData={treeData} onSelect={keys => { const key = String(keys?.[0] || ''); const id = Number(key.replace('package-', '')); const pkg = packages.find(item => item.id === id); if (pkg) setSelectedPackage(pkg); }} /></Card></Col>
+        <Col xs={24} lg={7}>
+          <Card title='主题路径'>
+            <Tree showIcon defaultExpandAll selectedKeys={selectedTreeKeys} treeData={treeData} onSelect={handleTreeSelect} />
+          </Card>
+        </Col>
         <Col xs={24} lg={17}>
-          <Card loading={loading} title={selectedPackage ? (pick<string>(selectedPackage, 'display_name', 'displayName') || '主题包工作区') : '主题包工作区'} extra={<Tag color='blue'>数据员生产线</Tag>}>
+          <Card
+            loading={loading}
+            title={selectedPackage ? `${pick<string>(selectedPackage, 'display_name', 'displayName') || '主题包工作区'} / ${platformLabelMap[selectedPlatform] || selectedPlatform}` : '主题包工作区'}
+            extra={<Space><Tag color='blue'>{platformLabelMap[selectedPlatform] || selectedPlatform}</Tag><Button icon={<PlusOutlined />} onClick={() => openTopicModal(selectedPlatform)}>创建{platformLabelMap[selectedPlatform] || ''}子主题</Button></Space>}
+          >
             {selectedPackage ? <>
               <Row gutter={[16,16]}>
-                <Col xs={24} md={12}><Card hoverable title='抖音'><Button icon={<PlusOutlined />} onClick={() => { topicForm.setFieldValue('platformCode', 'DOUYIN'); setTopicOpen(true); }}>创建抖音子主题</Button></Card></Col>
-                <Col xs={24} md={12}><Card hoverable title='小红书'><Button icon={<PlusOutlined />} onClick={() => { topicForm.setFieldValue('platformCode', 'XIAOHONGSHU'); setTopicOpen(true); }}>创建小红书子主题</Button></Card></Col>
+                <Col xs={24} md={12}><Card hoverable title='抖音' extra={selectedPlatform === 'DOUYIN' ? <Tag color='blue'>当前</Tag> : null}><Button icon={<PlusOutlined />} onClick={() => openTopicModal('DOUYIN')}>创建抖音子主题</Button></Card></Col>
+                <Col xs={24} md={12}><Card hoverable title='小红书' extra={selectedPlatform === 'XIAOHONGSHU' ? <Tag color='blue'>当前</Tag> : null}><Button icon={<PlusOutlined />} onClick={() => openTopicModal('XIAOHONGSHU')}>创建小红书子主题</Button></Card></Col>
               </Row>
-              <Table className='mt12' rowKey='id' pagination={false} dataSource={platformTopics as any[]} columns={[
-                { title: '平台', render: (_: any, r: any) => pick(r, 'platform_name', 'platformName') || pick(r, 'platform_code', 'platformCode') },
-                { title: '子主题', render: (_: any, r: any) => pick(r, 'sub_topic_name', 'subTopicName') },
-                { title: '识别标题', render: (_: any, r: any) => pick(r, 'ocr_title', 'ocrTitle') || '-' },
-                { title: '封面', render: (_: any, r: any) => pick(r, 'cover_image_url', 'coverImageUrl') ? <Tag color='green'>已上传</Tag> : <Tag>未上传</Tag> },
-                { title: '识别状态', render: (_: any, r: any) => { const v = pick<string>(r, 'ocr_status', 'ocrStatus') || 'pending'; return <Tag color={statusColor(v)}>{v}</Tag>; } },
-                { title: '操作', render: (_: any, r: DataOpsPlatformTopic) => <Space wrap>
-                  <Upload showUploadList={false} beforeUpload={file => { uploadCover(r, file); return false; }}><Button loading={uploading && recognizingTopicId !== r.id} icon={<CloudUploadOutlined />}>上传封面并识别</Button></Upload>
-                  <Button icon={<ScanOutlined />} loading={recognizingTopicId === r.id} disabled={!topicCoverAssetId(r)} onClick={() => recognizeCover(r)}>识别封面</Button>
-                  <Button type='link' onClick={() => openConfirmContent(r)}>确认主题内容</Button>
-                </Space> }
-              ]} />
-              <Card type='inner' title='主题内容' className='mt12'>
-                {contents.length ? <Table rowKey='id' pagination={false} dataSource={contents as any[]} columns={[
+              <Table
+                className='mt12'
+                rowKey='id'
+                pagination={{ pageSize: 5, showSizeChanger: false }}
+                dataSource={selectedPlatformTopics as any[]}
+                onRow={record => ({
+                  onClick: () => setSelectedTopicId(record.id)
+                })}
+                rowClassName={record => record.id === selectedTopicId ? 'ant-table-row-selected' : ''}
+                columns={[
+                  { title: '平台', width: 90, render: (_: any, r: any) => pick(r, 'platform_name', 'platformName') || platformLabelMap[pick(r, 'platform_code', 'platformCode')] || pick(r, 'platform_code', 'platformCode') },
+                  { title: '子主题', render: (_: any, r: any) => pick(r, 'sub_topic_name', 'subTopicName') },
+                  { title: '识别标题', render: (_: any, r: any) => pick(r, 'ocr_title', 'ocrTitle') || '-' },
+                  { title: '封面', width: 90, render: (_: any, r: any) => pick(r, 'cover_image_url', 'coverImageUrl') ? <Tag color='green'>已上传</Tag> : <Tag>未上传</Tag> },
+                  { title: '识别状态', width: 120, render: (_: any, r: any) => { const v = pick<string>(r, 'ocr_status', 'ocrStatus') || 'pending'; return <Tag color={statusColor(v)}>{v}</Tag>; } },
+                  { title: '操作', width: 380, render: (_: any, r: DataOpsPlatformTopic) => {
+                    const coverBusy = coverUploadingIds.has(r.id) || recognizingTopicIds.has(r.id);
+                    return <Space wrap onClick={event => event.stopPropagation()}>
+                      <Upload showUploadList={false} beforeUpload={file => { uploadCover(r, file); return false; }}>
+                        <Button loading={coverBusy} icon={<CloudUploadOutlined />}>上传封面并识别</Button>
+                      </Upload>
+                      <Button icon={<ScanOutlined />} loading={recognizingTopicIds.has(r.id)} disabled={!topicCoverAssetId(r)} onClick={() => recognizeCover(r)}>识别封面</Button>
+                      <Button type='link' onClick={() => openConfirmContent(r)}>确认主题内容</Button>
+                    </Space>;
+                  } }
+                ]}
+              />
+              <Card type='inner' title={selectedTopic ? `主题内容：${topicDisplayName(selectedTopic) || pick(selectedTopic, 'sub_topic_name', 'subTopicName')}` : '主题内容'} className='mt12'>
+                {selectedContents.length ? <Table rowKey='id' pagination={{ pageSize: 5, showSizeChanger: false }} dataSource={selectedContents as any[]} columns={[
                   { title: '标题', render: (_: any, r: any) => pick(r, 'content_title', 'contentTitle') },
-                  { title: '平台', render: (_: any, r: any) => pick(r, 'platform_code', 'platformCode') },
-                  { title: '截图数量', render: (_: any, r: any) => pick(r, 'screenshot_count', 'screenshotCount') || 0 },
-                  { title: '状态', dataIndex: 'status', render: (v: string) => <Tag>{v || 'draft'}</Tag> },
-                  { title: '上传截图', render: (_: any, r: DataOpsContent) => <Upload multiple beforeUpload={() => false} onChange={info => uploadScreenshots(r, info.fileList)}><Button loading={uploading} icon={<CloudUploadOutlined />}>上传一组数据图片</Button></Upload> }
-                ]} /> : <Empty description='创建主题包后上传封面和数据截图' />}
+                  { title: '平台', width: 90, render: (_: any, r: any) => platformLabelMap[pick(r, 'platform_code', 'platformCode')] || pick(r, 'platform_code', 'platformCode') },
+                  { title: '截图数量', width: 100, render: (_: any, r: any) => pick(r, 'screenshot_count', 'screenshotCount') || 0 },
+                  { title: '状态', width: 110, dataIndex: 'status', render: (v: string) => <Tag>{v || 'draft'}</Tag> },
+                  { title: '上传截图', width: 180, render: (_: any, r: DataOpsContent) => <Upload
+                    multiple
+                    showUploadList={false}
+                    customRequest={async options => {
+                      try {
+                        await uploadScreenshots(r, [options.file as File]);
+                        options.onSuccess?.({}, options.file as any);
+                      } catch (error) {
+                        options.onError?.(error as Error);
+                      }
+                    }}
+                  ><Button loading={screenshotUploadingContentIds.has(r.id)} icon={<CloudUploadOutlined />}>上传数据图片</Button></Upload> }
+                ]} /> : <Empty description={selectedTopic ? '当前子主题还没有确认主题内容' : '请选择一个子主题'} />}
               </Card>
             </> : <Empty description='请先创建今日主题包' />}
           </Card>
