@@ -1,8 +1,8 @@
 export type AssetFileType = 'script' | 'video' | 'image';
 export type UploadStatus = 'uploading' | 'success' | 'failed' | 'partial_success' | 'pending_supplement';
 export type ContentPackageStatus = 'pending_upload' | 'uploading' | 'partial_completed' | 'completed' | 'deleted';
-export type TaskType = 'package_create' | 'media_upload' | 'operator_lead_generate';
-export type TaskRoleType = 'media' | 'operator';
+export type TaskType = 'package_create' | 'media_upload' | 'operator_lead_generate' | 'consultant_qr_upload' | 'consultant_region_change' | 'data_cover_upload' | 'data_screenshot_upload' | 'data_daily_report_generate';
+export type TaskRoleType = 'media' | 'operator' | 'data';
 export type MediaTaskStatus = 'created' | 'processing' | 'uploading' | 'success' | 'failed' | 'cancelled' | 'partial_success' | 'pending_supplement';
 export type OperatorTaskStatus = 'pending' | 'processing' | 'completed' | 'overdue' | 'rejected';
 export type TaskStatus = MediaTaskStatus | OperatorTaskStatus;
@@ -70,6 +70,9 @@ export interface Task {
   progress: number;
   errorMessage?: string;
   fileName?: string;
+  uploadBucketName?: string;
+  uploadObjectKey?: string;
+  uploadPublicUrl?: string;
   fileSize?: number;
   uploadedBytes?: number;
   speedBytesPerSecond?: number;
