@@ -13,6 +13,22 @@ export interface DataOpsUserOption {
   roleCode?: DataOpsUserRole;
 }
 
+export interface DataOpsAsset {
+  id: number;
+  asset_type?: string;
+  assetType?: string;
+  original_filename?: string;
+  originalFilename?: string;
+  bucket_name?: string;
+  bucketName?: string;
+  object_key?: string;
+  objectKey?: string;
+  public_url?: string;
+  publicUrl?: string;
+  upload_status?: string;
+  uploadStatus?: string;
+}
+
 export interface DataOpsPackage {
   id: number;
   package_no?: string;
@@ -32,6 +48,7 @@ export interface DataOpsPackage {
   reportStatus?: string;
   platformTopics?: DataOpsPlatformTopic[];
   contents?: DataOpsContent[];
+  assets?: DataOpsAsset[];
 }
 
 export interface DataOpsPlatformTopic {
@@ -44,9 +61,12 @@ export interface DataOpsPlatformTopic {
   platformName?: string;
   sub_topic_name?: string;
   subTopicName?: string;
+  cover_image_url?: string;
+  coverImageUrl?: string;
   status?: string;
   ocr_status?: string;
   ocrStatus?: string;
+  asset?: DataOpsAsset;
 }
 
 export interface DataOpsContent {
@@ -66,6 +86,7 @@ export interface DataOpsContent {
   recognition_status?: string;
   recognitionStatus?: string;
   status?: string;
+  assets?: DataOpsAsset[];
 }
 
 export const dataOpsApi = {
@@ -93,8 +114,20 @@ export const dataOpsApi = {
     const res = await client.get(`/data-ops/packages/${packageId}/platform-topics`);
     return unwrapResponse<DataOpsPlatformTopic[]>(res.data);
   },
+  async uploadCover(topicId: number | string, file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await client.post(`/data-ops/platform-topics/${topicId}/cover`, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
+    return unwrapResponse<DataOpsPlatformTopic>(res.data);
+  },
   async confirmContent(topicId: number | string, payload: { contentTitle?: string; contentSummary?: string; contentDate?: string }) {
     const res = await client.post(`/data-ops/platform-topics/${topicId}/contents/confirm`, payload);
+    return unwrapResponse<DataOpsContent>(res.data);
+  },
+  async uploadScreenshots(contentId: number | string, files: File[]) {
+    const form = new FormData();
+    files.forEach(file => form.append('files', file));
+    const res = await client.post(`/data-ops/contents/${contentId}/screenshots`, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
     return unwrapResponse<DataOpsContent>(res.data);
   },
   async generateDailyReport(payload: { date?: string }) {
