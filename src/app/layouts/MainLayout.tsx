@@ -1,5 +1,5 @@
 import { Layout } from 'antd';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Outlet } from 'react-router-dom';
 import { AppHeader, AppSider, GlobalUploadPanel } from '@/components';
 
@@ -21,16 +21,16 @@ function clampPosition(next: DragPosition): DragPosition {
   };
 }
 
-function DraggableTaskPanel({ children }: { children: React.ReactNode }) {
+function DraggableUploadPanel({ children }: { children: ReactNode }) {
   const [position, setPosition] = useState<DragPosition>(() => {
-    const saved = localStorage.getItem('taskPanelPosition');
+    const saved = localStorage.getItem('uploadCenterPosition') || localStorage.getItem('taskPanelPosition');
     if (!saved) return getDefaultPosition();
     try { return clampPosition(JSON.parse(saved)); } catch { return getDefaultPosition(); }
   });
   const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
 
   useEffect(() => {
-    localStorage.setItem('taskPanelPosition', JSON.stringify(position));
+    localStorage.setItem('uploadCenterPosition', JSON.stringify(position));
   }, [position]);
 
   useEffect(() => {
@@ -59,7 +59,7 @@ function DraggableTaskPanel({ children }: { children: React.ReactNode }) {
 
   return <div className='draggable-task-panel' style={{ left: position.x, top: position.y }}>
     <div className='draggable-task-handle' onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag}>
-      拖动任务中心
+      拖动任务上传中心
     </div>
     <div className='draggable-task-body'>{children}</div>
   </div>;
@@ -75,7 +75,7 @@ export default function MainLayout(){
           <Outlet/>
         </div>
       </Layout.Content>
-      <DraggableTaskPanel><GlobalUploadPanel /></DraggableTaskPanel>
+      <DraggableUploadPanel><GlobalUploadPanel /></DraggableUploadPanel>
     </Layout>
   </Layout>;
 }
