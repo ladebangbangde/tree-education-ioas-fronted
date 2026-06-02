@@ -119,10 +119,11 @@ export function adaptLead(dto: any): Lead {
 }
 
 export function adaptTask(dto: any, fallbackRoleType?: TaskRoleType): Task {
+  const fallbackTaskType = fallbackRoleType === 'media' ? 'media_upload' : fallbackRoleType === 'data' ? 'data_screenshot_upload' : 'operator_lead_generate';
   return {
     id: stringValue(dto?.id, dto?.taskId),
     title: stringValue(dto?.title),
-    taskType: stringValue(dto?.taskType, dto?.type, fallbackRoleType === 'media' ? 'media_upload' : 'operator_lead_generate') as TaskType,
+    taskType: stringValue(dto?.taskType, dto?.type, fallbackTaskType) as TaskType,
     roleType: stringValue(dto?.roleType, fallbackRoleType || 'operator') as TaskRoleType,
     relatedPackageId: stringValue(dto?.relatedPackageId, dto?.packageId, dto?.contentPackageId),
     topicName: stringValue(dto?.topicName),
@@ -142,6 +143,9 @@ export function adaptTask(dto: any, fallbackRoleType?: TaskRoleType): Task {
     progress: numberValue(dto?.progress, dto?.percent),
     errorMessage: stringValue(dto?.errorMessage, dto?.error) || undefined,
     fileName: stringValue(dto?.fileName, dto?.name) || undefined,
+    uploadBucketName: stringValue(dto?.uploadBucketName, dto?.bucketName) || undefined,
+    uploadObjectKey: stringValue(dto?.uploadObjectKey, dto?.objectKey) || undefined,
+    uploadPublicUrl: stringValue(dto?.uploadPublicUrl, dto?.publicUrl) || undefined,
     fileSize: optionalNumberValue(dto?.fileSize, dto?.totalBytes),
     uploadedBytes: optionalNumberValue(dto?.uploadedBytes, dto?.loadedBytes),
     speedBytesPerSecond: optionalNumberValue(dto?.speedBytesPerSecond, dto?.speed),
@@ -152,7 +156,7 @@ export function adaptTask(dto: any, fallbackRoleType?: TaskRoleType): Task {
     createdAt: stringValue(dto?.createdAt, dto?.createTime),
     completedAt: stringValue(dto?.completedAt, dto?.finishTime) || undefined,
     updatedAt: stringValue(dto?.updatedAt, dto?.updateTime) || undefined
-  };
+  } as any;
 }
 
 export function adaptReportMetrics(dto: any) {
