@@ -17,12 +17,12 @@ export const menuConfig: AppMenuItem[] = [
   { key: 'operator-leads', label: '线索中心', path: '/operator/leads', icon: <TeamOutlined />, roles: ['OPERATOR'] },
   { key: 'media-assets', label: '媒体资源中心', path: '/media-assets', icon: <FolderOpenOutlined />, roles: ['MEDIA', 'OPERATOR'] },
   { key: 'role-tasks', label: '任务中心', path: '/tasks', icon: <FileTextOutlined />, roles: ['MEDIA', 'OPERATOR', 'CONSULTANT', 'DATA', 'ADMINISTRATIVE'] },
-  { key: 'role-reports', label: '数据报表', path: '/reports', icon: <BarChartOutlined />, roles: ['MEDIA', 'OPERATOR', 'DATA'] },
+  { key: 'role-reports', label: '数据报表', path: '/reports', icon: <BarChartOutlined />, roles: ['MEDIA', 'OPERATOR'] },
   {
     key: 'data-ops',
     label: '数据操作',
     icon: <DatabaseOutlined />,
-    roles: ['DATA', 'SUPER_ADMIN'],
+    roles: ['DATA'],
     children: [
       { key: 'operation-data', label: '运营数据', path: '/data-ops/operation-data' }
     ]
