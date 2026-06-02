@@ -1,6 +1,6 @@
 import client, { unwrapResponse } from './client';
 
-export type PlatformCode = 'DOUYIN' | 'XIAOHONGSHU';
+export type PlatformCode = 'DOUYIN' | 'XIAOHONGSHU' | 'WECHAT_CHANNEL';
 export type DataOpsUserRole = 'MEDIA' | 'OPERATOR' | 'DATA' | 'ADMINISTRATIVE' | 'CONSULTANT';
 
 export interface DataOpsUserOption {
@@ -150,6 +150,14 @@ export const dataOpsApi = {
   },
   async recognizeAsset(assetId: number | string, params?: { platform?: PlatformCode; scene?: string }) {
     const res = await client.post('/data-ops/assets/' + assetId + '/recognize', null, { params, timeout: 0 });
+    return unwrapResponse<DataOpsRecognitionResponse>(res.data);
+  },
+  async recognizeUploadedImage(file: File, params: { platform: PlatformCode; scene: string }) {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('platform', params.platform);
+    form.append('scene', params.scene);
+    const res = await client.post('/recognition/social-metrics', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
     return unwrapResponse<DataOpsRecognitionResponse>(res.data);
   },
   async generateDailyReport(payload: { date?: string }) {
