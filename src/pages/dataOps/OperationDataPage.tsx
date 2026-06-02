@@ -69,6 +69,7 @@ export default function OperationDataPage() {
   const [reportGenerating, setReportGenerating] = useState(false);
   const [coverUploadingIds, setCoverUploadingIds] = useState<Set<number>>(new Set());
   const [recognizingTopicIds, setRecognizingTopicIds] = useState<Set<number>>(new Set());
+  const [generatingTopicIds, setGeneratingTopicIds] = useState<Set<number>>(new Set());
   const [screenshotUploadingContentIds, setScreenshotUploadingContentIds] = useState<Set<number>>(new Set());
   const [packages, setPackages] = useState<DataOpsPackage[]>([]);
   const [selectedPackage, setSelectedPackage] = useState<DataOpsPackage>();
@@ -263,6 +264,26 @@ export default function OperationDataPage() {
     }
   };
 
+  const generateCurrentTopicData = async (topic: DataOpsPlatformTopic) => {
+    if (!topic?.id) return;
+    setSelectedTopicId(topic.id);
+    setFlag(setGeneratingTopicIds, topic.id, true);
+    try {
+      const result = await dataOpsApi.generateCurrentTopicData(topic.id);
+      if (result.package) {
+        setSelectedPackage(result.package);
+        setPackages(rows => rows.map(item => item.id === result.packageId ? result.package! : item));
+      } else {
+        await refreshPackageDetail();
+      }
+      const summary = `封面${result.coverRecognized || 0}，截图${result.screenshotsRecognized || 0}，跳过${result.skipped || 0}，失败${result.failed || 0}`;
+      if (result.failed) message.warning(`当前主题数据生成完成，但有失败项：${summary}`);
+      else message.success(`当前主题数据生成完成：${summary}`);
+    } finally {
+      setFlag(setGeneratingTopicIds, topic.id, false);
+    }
+  };
+
   const generateReport = async () => {
     setReportGenerating(true);
     try {
@@ -332,24 +353,31 @@ export default function OperationDataPage() {
                   { title: '识别标题', render: (_: any, r: any) => pick(r, 'ocr_title', 'ocrTitle') || '-' },
                   { title: '封面', width: 90, render: (_: any, r: any) => pick(r, 'cover_image_url', 'coverImageUrl') ? <Tag color='green'>已上传</Tag> : <Tag>未上传</Tag> },
                   { title: '识别状态', width: 120, render: (_: any, r: any) => { const v = pick<string>(r, 'ocr_status', 'ocrStatus') || 'pending'; return <Tag color={statusColor(v)}>{v}</Tag>; } },
-                  { title: '操作', width: 380, render: (_: any, r: DataOpsPlatformTopic) => {
+                  { title: '操作', width: 500, render: (_: any, r: DataOpsPlatformTopic) => {
                     const coverBusy = coverUploadingIds.has(r.id) || recognizingTopicIds.has(r.id);
+                    const generating = generatingTopicIds.has(r.id);
                     return <Space wrap onClick={event => event.stopPropagation()}>
                       <Upload showUploadList={false} beforeUpload={file => { uploadCover(r, file); return false; }}>
                         <Button loading={coverBusy} icon={<CloudUploadOutlined />}>上传封面并识别</Button>
                       </Upload>
                       <Button icon={<ScanOutlined />} loading={recognizingTopicIds.has(r.id)} disabled={!topicCoverAssetId(r)} onClick={() => recognizeCover(r)}>识别封面</Button>
+                      <Button loading={generating} disabled={!topicCoverAssetId(r)} onClick={() => generateCurrentTopicData(r)}>生成当前主题数据</Button>
                       <Button type='link' onClick={() => openConfirmContent(r)}>确认主题内容</Button>
                     </Space>;
                   } }
                 ]}
               />
-              <Card type='inner' title={selectedTopic ? `主题内容：${topicDisplayName(selectedTopic) || pick(selectedTopic, 'sub_topic_name', 'subTopicName')}` : '主题内容'} className='mt12'>
+              <Card
+                type='inner'
+                title={selectedTopic ? `主题内容：${topicDisplayName(selectedTopic) || pick(selectedTopic, 'sub_topic_name', 'subTopicName')}` : '主题内容'}
+                className='mt12'
+                extra={selectedTopic ? <Button loading={generatingTopicIds.has(selectedTopic.id)} disabled={!topicCoverAssetId(selectedTopic)} onClick={() => generateCurrentTopicData(selectedTopic)}>生成当前主题数据</Button> : null}
+              >
                 {selectedContents.length ? <Table rowKey='id' pagination={{ pageSize: 5, showSizeChanger: false }} dataSource={selectedContents as any[]} columns={[
                   { title: '标题', render: (_: any, r: any) => pick(r, 'content_title', 'contentTitle') },
                   { title: '平台', width: 90, render: (_: any, r: any) => platformLabelMap[pick(r, 'platform_code', 'platformCode')] || pick(r, 'platform_code', 'platformCode') },
                   { title: '截图数量', width: 100, render: (_: any, r: any) => pick(r, 'screenshot_count', 'screenshotCount') || 0 },
-                  { title: '状态', width: 110, dataIndex: 'status', render: (v: string) => <Tag>{v || 'draft'}</Tag> },
+                  { title: '状态', width: 110, render: (_: any, r: any) => <Tag color={statusColor(pick(r, 'recognition_status', 'recognitionStatus') || r.status)}>{pick(r, 'recognition_status', 'recognitionStatus') || r.status || 'draft'}</Tag> },
                   { title: '上传截图', width: 180, render: (_: any, r: DataOpsContent) => <Upload
                     multiple
                     showUploadList={false}
