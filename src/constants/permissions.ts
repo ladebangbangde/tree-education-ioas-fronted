@@ -61,7 +61,7 @@ export const rolePageMatrix: Record<Role, string[]> = {
   MEDIA: ['/profile/settings','/media/content','/media-assets','/tasks','/reports'],
   OPERATOR: ['/profile/settings','/operator/leads','/media-assets','/tasks','/reports'],
   CONSULTANT: ['/profile/settings','/tasks','/dashboard','/leads/list','/leads/detail/:id','/leads/follow','/students/list','/students/detail/:id','/applications/kanban','/applications/detail/:id','/applications/stage/:stage','/applications/materials','/applications/offers','/applications/visa','/knowledge/library'],
-  DATA: ['/profile/settings','/data-ops/operation-data','/tasks','/reports'],
+  DATA: ['/profile/settings','/data-ops/operation-data','/tasks'],
   ADMINISTRATIVE: ['/profile/settings','/dashboard','/tasks']
 };
 
