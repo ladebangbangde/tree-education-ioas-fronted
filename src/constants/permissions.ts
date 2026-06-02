@@ -57,7 +57,7 @@ const allRoutes = [
 ] as const;
 
 export const rolePageMatrix: Record<Role, string[]> = {
-  SUPER_ADMIN: [...superAdminGovernanceRoutes],
+  SUPER_ADMIN: [...superAdminGovernanceRoutes, '/tasks'],
   MEDIA: ['/profile/settings','/media/content','/media-assets','/tasks','/reports'],
   OPERATOR: ['/profile/settings','/operator/leads','/media-assets','/tasks','/reports'],
   CONSULTANT: ['/profile/settings','/tasks','/dashboard','/leads/list','/leads/detail/:id','/leads/follow','/students/list','/students/detail/:id','/applications/kanban','/applications/detail/:id','/applications/stage/:stage','/applications/materials','/applications/offers','/applications/visa','/knowledge/library'],
