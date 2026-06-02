@@ -1,3 +1,5 @@
-import { Button, Card, Checkbox, Col, Row, Space, Tree } from 'antd';import { useNavigate } from 'react-router-dom';
-import { PageHeader } from '@/components';import { roles } from '@/mock/settings';import { useEnterpriseActions } from '@/hooks/useEnterpriseActions';
-export default function RolesPage(){const nav=useNavigate();const {openAction,canAction,contextHolder}=useEnterpriseActions('角色权限');return <>{contextHolder}<PageHeader title='角色权限中心' extra={canAction('permission')&&<Button type='primary' onClick={()=>openAction('permission',{name:'SUPER_ADMIN'})}>配置权限</Button>}/><Row gutter={[16,16]}><Col span={6}><Card title='角色列表'>{roles.map(r=><p key={r}><Button type='link' onClick={()=>nav(`/settings/role/detail/${r}`)}>{r}</Button></p>)}</Card></Col><Col span={18}><Card title='权限配置区' extra={canAction('permission')&&<Button onClick={()=>nav('/settings/role/permission/SUPER_ADMIN')}>角色权限配置页</Button>}><Row gutter={[16,16]}><Col span={12}><Card type='inner' title='菜单权限树'><Tree checkable defaultExpandAll treeData={[{title:'工作台',key:'1'},{title:'线索中心',key:'2',children:[{title:'线索列表',key:'2-1'},{title:'线索分配',key:'2-2'},{title:'跟进记录',key:'2-3'}]},{title:'系统设置',key:'3',children:[{title:'用户管理',key:'3-1'},{title:'角色权限',key:'3-2'}]}]}/></Card></Col><Col span={12}><Card type='inner' title='按钮权限'><Checkbox.Group options={['查看','新增','编辑','删除','导出','分配','发布']} /></Card><Card className='mt12' type='inner' title='数据权限'><Space direction='vertical'><Checkbox>全部数据</Checkbox><Checkbox>部门数据</Checkbox><Checkbox>个人数据</Checkbox></Space></Card></Col></Row></Card></Col></Row></>}
+import FeatureClosedPage from '@/pages/common/FeatureClosedPage';
+
+export default function RolesPage(){
+  return <FeatureClosedPage title={'\u89d2\u8272\u6743\u9650\u4e2d\u5fc3'} />;
+}
