@@ -1,6 +1,6 @@
 import { Button, Card, Col, Empty, Form, Input, Modal, Row, Select, Space, Statistic, Table, Tag, Tree, Upload, message } from 'antd';
 import type { UploadFile } from 'antd';
-import { CalendarOutlined, CloudUploadOutlined, FolderOpenOutlined, PlusOutlined } from '@ant-design/icons';
+import { CalendarOutlined, CloudUploadOutlined, FolderOpenOutlined, PlusOutlined, ScanOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '@/components';
@@ -22,10 +22,30 @@ function toUserSelectOptions(rows: DataOpsUserOption[]) {
   }));
 }
 
+function statusColor(status?: string) {
+  if (status === 'success' || status === 'recognized') return 'green';
+  if (status === 'failed') return 'red';
+  if (status === 'pending') return 'gold';
+  return 'default';
+}
+
+function topicCoverAssetId(topic?: DataOpsPlatformTopic) {
+  return pick<number>(topic, 'cover_asset_id', 'coverAssetId') || topic?.asset?.id;
+}
+
+function topicPlatform(topic?: DataOpsPlatformTopic): PlatformCode | undefined {
+  return pick<PlatformCode>(topic, 'platform_code', 'platformCode');
+}
+
+function topicDisplayName(topic?: DataOpsPlatformTopic) {
+  return pick<string>(topic, 'ocr_title', 'ocrTitle') || pick<string>(topic, 'sub_topic_name', 'subTopicName') || '';
+}
+
 export default function OperationDataPage() {
   const today = dayjs().format('YYYY-MM-DD');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [recognizingTopicId, setRecognizingTopicId] = useState<number>();
   const [packages, setPackages] = useState<DataOpsPackage[]>([]);
   const [selectedPackage, setSelectedPackage] = useState<DataOpsPackage>();
   const [operatorUsers, setOperatorUsers] = useState<DataOpsUserOption[]>([]);
@@ -118,6 +138,15 @@ export default function OperationDataPage() {
     await refreshPackageDetail(selectedPackage.id);
   };
 
+  const openConfirmContent = (topic: DataOpsPlatformTopic) => {
+    setActiveTopic(topic);
+    contentForm.setFieldsValue({
+      contentTitle: topicDisplayName(topic),
+      contentDate: today
+    });
+    setContentOpen(true);
+  };
+
   const confirmContent = async () => {
     if (!activeTopic?.id) return;
     const values = await contentForm.validateFields();
@@ -128,12 +157,27 @@ export default function OperationDataPage() {
     await refreshPackageDetail();
   };
 
+  const recognizeCover = async (topic: DataOpsPlatformTopic) => {
+    const assetId = topicCoverAssetId(topic);
+    if (!assetId) return message.warning('请先上传封面');
+    const platform = topicPlatform(topic);
+    setRecognizingTopicId(topic.id);
+    try {
+      const result = await dataOpsApi.recognizeAsset(assetId, { platform, scene: 'CONTENT_DETAIL' });
+      const title = result?.result?.contentTitle || result?.result?.topicName || result?.result?.title || result?.result?.name;
+      message.success(title ? `封面识别成功：${title}` : '封面识别成功');
+      await refreshPackageDetail();
+    } finally {
+      setRecognizingTopicId(undefined);
+    }
+  };
+
   const uploadCover = async (topic: DataOpsPlatformTopic, file: File) => {
     setUploading(true);
     try {
-      await dataOpsApi.uploadCover(topic.id, file);
-      message.success('封面上传成功，等待 OCR 识别');
-      await refreshPackageDetail();
+      const uploaded = await dataOpsApi.uploadCover(topic.id, file);
+      message.success('封面上传成功，开始识别封面标题');
+      await recognizeCover(uploaded || topic);
     } finally {
       setUploading(false);
     }
@@ -179,9 +223,14 @@ export default function OperationDataPage() {
               <Table className='mt12' rowKey='id' pagination={false} dataSource={platformTopics as any[]} columns={[
                 { title: '平台', render: (_: any, r: any) => pick(r, 'platform_name', 'platformName') || pick(r, 'platform_code', 'platformCode') },
                 { title: '子主题', render: (_: any, r: any) => pick(r, 'sub_topic_name', 'subTopicName') },
+                { title: '识别标题', render: (_: any, r: any) => pick(r, 'ocr_title', 'ocrTitle') || '-' },
                 { title: '封面', render: (_: any, r: any) => pick(r, 'cover_image_url', 'coverImageUrl') ? <Tag color='green'>已上传</Tag> : <Tag>未上传</Tag> },
-                { title: '识别状态', render: (_: any, r: any) => <Tag>{pick(r, 'ocr_status', 'ocrStatus') || 'pending'}</Tag> },
-                { title: '操作', render: (_: any, r: DataOpsPlatformTopic) => <Space><Upload showUploadList={false} beforeUpload={file => { uploadCover(r, file); return false; }}><Button loading={uploading} icon={<CloudUploadOutlined />}>上传封面</Button></Upload><Button type='link' onClick={() => { setActiveTopic(r); setContentOpen(true); }}>确认主题内容</Button></Space> }
+                { title: '识别状态', render: (_: any, r: any) => { const v = pick<string>(r, 'ocr_status', 'ocrStatus') || 'pending'; return <Tag color={statusColor(v)}>{v}</Tag>; } },
+                { title: '操作', render: (_: any, r: DataOpsPlatformTopic) => <Space wrap>
+                  <Upload showUploadList={false} beforeUpload={file => { uploadCover(r, file); return false; }}><Button loading={uploading && recognizingTopicId !== r.id} icon={<CloudUploadOutlined />}>上传封面并识别</Button></Upload>
+                  <Button icon={<ScanOutlined />} loading={recognizingTopicId === r.id} disabled={!topicCoverAssetId(r)} onClick={() => recognizeCover(r)}>识别封面</Button>
+                  <Button type='link' onClick={() => openConfirmContent(r)}>确认主题内容</Button>
+                </Space> }
               ]} />
               <Card type='inner' title='主题内容' className='mt12'>
                 {contents.length ? <Table rowKey='id' pagination={false} dataSource={contents as any[]} columns={[
