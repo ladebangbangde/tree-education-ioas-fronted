@@ -1,9 +1,9 @@
 import { ClearOutlined, CloseOutlined, PauseCircleOutlined, PlayCircleOutlined, ProfileOutlined } from '@ant-design/icons';
-import { Alert, Badge, Button, Card, Progress, Space, Tag, Tooltip, Typography } from 'antd';
+import { Badge, Button, Card, Progress, Space, Tag, Tooltip, Typography } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUploadManager } from '@/hooks/useUploadManager';
-import type { GlobalUploadItem, GlobalUploadStatus, RecoverableUploadSession } from '@/services/uploadManager';
+import type { GlobalUploadItem, GlobalUploadStatus } from '@/services/uploadManager';
 
 const statusMeta: Record<GlobalUploadStatus, { text: string; color: string; progress?: 'success' | 'exception' | 'active' | 'normal' }> = {
   queued: { text: '排队中', color: 'default', progress: 'normal' },
@@ -48,7 +48,6 @@ export default function GlobalUploadPanel() {
   const nav = useNavigate();
   const { items, uploadManager } = useUploadManager();
   const [collapsed, setCollapsed] = useState(false);
-  const [recoverable, setRecoverable] = useState<RecoverableUploadSession[]>([]);
   const [position, setPosition] = useState<DragPosition>(() => {
     const saved = localStorage.getItem('globalUploadCenterPosition');
     if (!saved) return defaultPosition(false);
@@ -56,13 +55,6 @@ export default function GlobalUploadPanel() {
   });
   const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
   const activeCount = useMemo(() => items.filter(item => ['queued', 'uploading', 'processing'].includes(item.status)).length, [items]);
-
-  useEffect(() => {
-    const load = () => setRecoverable(uploadManager.listRecoverableSessions());
-    load();
-    const timer = window.setInterval(load, 5000);
-    return () => window.clearInterval(timer);
-  }, [uploadManager]);
 
   useEffect(() => {
     setPosition(current => clampPosition(current, collapsed));
@@ -98,7 +90,7 @@ export default function GlobalUploadPanel() {
     try { event.currentTarget.releasePointerCapture(event.pointerId); } catch { undefined; }
   };
 
-  if (!items.length && !recoverable.length) return null;
+  if (!items.length) return null;
 
   return <div className='global-upload-center' style={{ position: 'fixed', left: position.x, top: position.y, zIndex: 1000, width: collapsed ? 190 : 440 }}>
     <Card
@@ -112,13 +104,6 @@ export default function GlobalUploadPanel() {
       styles={{ body: { padding: collapsed ? 0 : 12 } }}
     >
       {!collapsed && <Space direction='vertical' style={{ width: '100%', maxHeight: 460, overflowY: 'auto' }} size={12}>
-        {recoverable.length > 0 && <Alert
-          type='warning'
-          showIcon
-          message={`检测到 ${recoverable.length} 个可恢复上传任务`}
-          description='浏览器刷新/关闭后，本地文件句柄已丢失。请进入任务中心点击“继续上传”，重新选择原文件恢复。'
-          action={<Button size='small' type='primary' onClick={() => nav('/tasks')}>去恢复</Button>}
-        />}
         {items.map(item => {
           const meta = statusMeta[item.status];
           return <div key={item.id} style={{ border: '1px solid #edf0f5', borderRadius: 10, padding: 10 }}>
