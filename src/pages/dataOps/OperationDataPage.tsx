@@ -63,6 +63,10 @@ function setFlag<T>(setter: React.Dispatch<React.SetStateAction<Set<T>>>, value:
   });
 }
 
+function mergePackage(rows: DataOpsPackage[], detail: DataOpsPackage) {
+  return rows.some(item => item.id === detail.id) ? rows.map(item => item.id === detail.id ? detail : item) : [detail, ...rows];
+}
+
 export default function OperationDataPage() {
   const today = dayjs().format('YYYY-MM-DD');
   const [loading, setLoading] = useState(false);
@@ -89,12 +93,19 @@ export default function OperationDataPage() {
     setLoading(true);
     try {
       const rows = await dataOpsApi.packages({ date: today });
-      setPackages(rows || []);
+      const hydrated = await Promise.all((rows || []).map(async row => {
+        try {
+          return await dataOpsApi.packageDetail(row.id);
+        } catch {
+          return row;
+        }
+      }));
+      setPackages(hydrated);
       if (selectedPackage?.id) {
-        const next = rows?.find(item => item.id === selectedPackage.id);
-        setSelectedPackage(next || rows?.[0]);
+        const next = hydrated.find(item => item.id === selectedPackage.id);
+        setSelectedPackage(next || hydrated[0]);
       } else {
-        setSelectedPackage(rows?.[0]);
+        setSelectedPackage(hydrated[0]);
       }
     } finally {
       setLoading(false);
@@ -103,10 +114,11 @@ export default function OperationDataPage() {
 
   const refreshPackageDetail = async (packageId?: number) => {
     const id = packageId || selectedPackage?.id;
-    if (!id) return;
+    if (!id) return undefined;
     const detail = await dataOpsApi.packageDetail(id);
     setSelectedPackage(detail);
-    setPackages(rows => rows.map(item => item.id === id ? detail : item));
+    setPackages(rows => mergePackage(rows, detail));
+    return detail;
   };
 
   const loadUserOptions = async () => {
@@ -179,21 +191,32 @@ export default function OperationDataPage() {
     message.success('主题包已创建');
     setPackageOpen(false);
     packageForm.resetFields();
-    await loadPackages();
     setSelectedPackage(created);
     setSelectedPlatform('DOUYIN');
+    setSelectedTopicId(undefined);
+    setPackages(rows => mergePackage(rows, created));
+    refreshPackageDetail(created.id).catch(() => undefined);
   };
 
   const createTopic = async () => {
     if (!selectedPackage?.id) return message.warning('请先选择主题包');
     const values = await topicForm.validateFields();
     const platformCode = values.platformCode as PlatformCode;
-    await dataOpsApi.createPlatformTopic(selectedPackage.id, { platformCode, subTopicName: values.subTopicName });
+    const created = await dataOpsApi.createPlatformTopic(selectedPackage.id, { platformCode, subTopicName: values.subTopicName });
+    const nextPackage: DataOpsPackage = {
+      ...selectedPackage,
+      platformTopics: [created, ...(selectedPackage.platformTopics || []).filter(topic => topic.id !== created.id)]
+    };
     message.success('平台子主题已创建');
     setTopicOpen(false);
     topicForm.resetFields();
     setSelectedPlatform(platformCode);
-    await refreshPackageDetail(selectedPackage.id);
+    setSelectedTopicId(created.id);
+    setSelectedPackage(nextPackage);
+    setPackages(rows => mergePackage(rows, nextPackage));
+    const detail = await refreshPackageDetail(selectedPackage.id);
+    const latestTopic = detail?.platformTopics?.find(topic => topic.id === created.id);
+    if (latestTopic) setSelectedTopicId(latestTopic.id);
   };
 
   const openTopicModal = (platformCode: PlatformCode) => {
@@ -272,7 +295,7 @@ export default function OperationDataPage() {
       const result = await dataOpsApi.generateCurrentTopicData(topic.id);
       if (result.package) {
         setSelectedPackage(result.package);
-        setPackages(rows => rows.map(item => item.id === result.packageId ? result.package! : item));
+        setPackages(rows => mergePackage(rows, result.package!));
       } else {
         await refreshPackageDetail();
       }
@@ -303,12 +326,14 @@ export default function OperationDataPage() {
       const pkg = packages.find(item => item.id === Number(packageId));
       if (pkg) setSelectedPackage(pkg);
       setSelectedPlatform(platform as PlatformCode);
+      setSelectedTopicId(undefined);
       return;
     }
     if (key.startsWith('package-')) {
       const id = Number(key.replace('package-', ''));
       const pkg = packages.find(item => item.id === id);
       if (pkg) setSelectedPackage(pkg);
+      setSelectedTopicId(undefined);
     }
   };
 
@@ -358,7 +383,7 @@ export default function OperationDataPage() {
                     const generating = generatingTopicIds.has(r.id);
                     return <Space wrap onClick={event => event.stopPropagation()}>
                       <Upload showUploadList={false} beforeUpload={file => { uploadCover(r, file); return false; }}>
-                        <Button loading={coverBusy} icon={<CloudUploadOutlined />}>上传封面并识别</Button>
+                        <Button loading={coverBusy} icon={<CloudUploadOutlined />}>上传/替换封面并识别</Button>
                       </Upload>
                       <Button icon={<ScanOutlined />} loading={recognizingTopicIds.has(r.id)} disabled={!topicCoverAssetId(r)} onClick={() => recognizeCover(r)}>识别封面</Button>
                       <Button loading={generating} disabled={!topicCoverAssetId(r)} onClick={() => generateCurrentTopicData(r)}>生成当前主题数据</Button>
