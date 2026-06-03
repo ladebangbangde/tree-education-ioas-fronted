@@ -15,18 +15,46 @@ export interface DataOpsUserOption {
 
 export interface DataOpsAsset {
   id: number;
+  package_id?: number;
+  packageId?: number;
+  platform_topic_id?: number;
+  platformTopicId?: number;
+  content_id?: number;
+  contentId?: number;
   asset_type?: string;
   assetType?: string;
   original_filename?: string;
   originalFilename?: string;
+  file_name?: string;
+  fileName?: string;
   bucket_name?: string;
   bucketName?: string;
   object_key?: string;
   objectKey?: string;
   public_url?: string;
   publicUrl?: string;
+  url?: string;
+  thumbnail_url?: string;
+  thumbnailUrl?: string;
   upload_status?: string;
   uploadStatus?: string;
+  recognition_status?: string;
+  recognitionStatus?: string;
+  status?: string;
+  error_message?: string;
+  errorMessage?: string;
+  fail_reason?: string;
+  failReason?: string;
+  created_at?: string;
+  createdAt?: string;
+  uploaded_at?: string;
+  uploadedAt?: string;
+  ocr_payload_json?: string;
+  ocrPayloadJson?: string;
+  data_payload_json?: string;
+  dataPayloadJson?: string;
+  parsed_result_json?: string;
+  parsedResultJson?: string;
 }
 
 export interface DataOpsPackage {
@@ -69,6 +97,8 @@ export interface DataOpsPlatformTopic {
   ocrTitle?: string;
   ocr_account_name?: string;
   ocrAccountName?: string;
+  ocr_payload_json?: string;
+  ocrPayloadJson?: string;
   status?: string;
   ocr_status?: string;
   ocrStatus?: string;
@@ -92,6 +122,8 @@ export interface DataOpsContent {
   recognition_status?: string;
   recognitionStatus?: string;
   status?: string;
+  data_payload_json?: string;
+  dataPayloadJson?: string;
   assets?: DataOpsAsset[];
 }
 
