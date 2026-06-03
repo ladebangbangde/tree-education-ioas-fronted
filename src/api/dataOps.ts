@@ -2,6 +2,8 @@ import client, { unwrapResponse } from './client';
 
 export type PlatformCode = 'DOUYIN' | 'XIAOHONGSHU' | 'WECHAT_CHANNEL';
 export type DataOpsUserRole = 'MEDIA' | 'OPERATOR' | 'DATA' | 'ADMINISTRATIVE' | 'CONSULTANT';
+export type DataOpsContentType = 'IMAGE_TEXT' | 'VIDEO';
+export type DataOpsAssetGroup = 'DOUYIN_OVERVIEW' | 'DOUYIN_OVERVIEW_CHART' | 'DOUYIN_FLOW_ANALYSIS';
 
 export interface DataOpsUserOption {
   id: number;
@@ -23,6 +25,10 @@ export interface DataOpsAsset {
   contentId?: number;
   asset_type?: string;
   assetType?: string;
+  content_type?: DataOpsContentType;
+  contentType?: DataOpsContentType;
+  asset_group?: DataOpsAssetGroup;
+  assetGroup?: DataOpsAssetGroup;
   original_filename?: string;
   originalFilename?: string;
   file_name?: string;
@@ -87,6 +93,8 @@ export interface DataOpsPlatformTopic {
   platformCode?: PlatformCode;
   platform_name?: string;
   platformName?: string;
+  content_type?: DataOpsContentType;
+  contentType?: DataOpsContentType;
   sub_topic_name?: string;
   subTopicName?: string;
   cover_asset_id?: number;
@@ -113,6 +121,8 @@ export interface DataOpsContent {
   platformTopicId?: number;
   platform_code?: PlatformCode;
   platformCode?: PlatformCode;
+  content_type?: DataOpsContentType;
+  contentType?: DataOpsContentType;
   content_title?: string;
   contentTitle?: string;
   content_summary?: string;
@@ -167,7 +177,7 @@ export const dataOpsApi = {
     const res = await client.get('/data-ops/packages/' + id);
     return unwrapResponse<DataOpsPackage>(res.data);
   },
-  async createPlatformTopic(packageId: number | string, payload: { platformCode: PlatformCode; subTopicName?: string }) {
+  async createPlatformTopic(packageId: number | string, payload: { platformCode: PlatformCode; subTopicName?: string; contentType?: DataOpsContentType }) {
     const res = await client.post('/data-ops/packages/' + packageId + '/platform-topics', payload);
     return unwrapResponse<DataOpsPlatformTopic>(res.data);
   },
@@ -181,13 +191,14 @@ export const dataOpsApi = {
     const res = await client.post('/data-ops/platform-topics/' + topicId + '/cover', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
     return unwrapResponse<DataOpsPlatformTopic>(res.data);
   },
-  async confirmContent(topicId: number | string, payload: { contentTitle?: string; contentSummary?: string; contentDate?: string }) {
+  async confirmContent(topicId: number | string, payload: { contentTitle?: string; contentSummary?: string; contentDate?: string; contentType?: DataOpsContentType }) {
     const res = await client.post('/data-ops/platform-topics/' + topicId + '/contents/confirm', payload);
     return unwrapResponse<DataOpsContent>(res.data);
   },
-  async uploadScreenshots(contentId: number | string, files: File[]) {
+  async uploadScreenshots(contentId: number | string, files: File[], assetGroup?: DataOpsAssetGroup) {
     const form = new FormData();
     files.forEach(file => form.append('files', file));
+    if (assetGroup) form.append('assetGroup', assetGroup);
     const res = await client.post('/data-ops/contents/' + contentId + '/screenshots', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
     return unwrapResponse<DataOpsContent>(res.data);
   },
