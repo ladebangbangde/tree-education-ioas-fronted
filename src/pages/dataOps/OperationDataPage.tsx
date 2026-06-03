@@ -104,6 +104,80 @@ function mergePackage(rows: DataOpsPackage[], detail: DataOpsPackage) {
   return rows.some(item => item.id === detail.id) ? rows.map(item => item.id === detail.id ? detail : item) : [detail, ...rows];
 }
 
+function parseJson(value: any): any {
+  if (!value) return undefined;
+  if (typeof value === 'object') return value;
+  if (typeof value !== 'string') return undefined;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function resultOf(payload: any) {
+  const parsed = parseJson(payload);
+  if (!parsed) return undefined;
+  return parsed.result || parsed.data?.result || parsed.rawPayload?.result || parsed;
+}
+
+function firstText(source: any, keys: string[]) {
+  if (!source) return undefined;
+  for (const key of keys) {
+    const value = source[key];
+    if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
+  }
+  const metrics = source.metrics;
+  if (metrics && typeof metrics === 'object') {
+    for (const key of keys) {
+      const value = metrics[key];
+      if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
+    }
+  }
+  return undefined;
+}
+
+function buildRecognitionInfo(result: any, fallback?: string) {
+  const contentTitle = firstText(result, ['contentTitle', 'topicName', 'title', 'name', 'ocrTitle']);
+  const accountName = firstText(result, ['accountName', 'authorName', 'nickname']);
+  const accountId = firstText(result, ['douyinId', 'accountId', 'wechatChannelId', 'videoAccountId']);
+  if (contentTitle) {
+    return {
+      primary: contentTitle,
+      secondary: accountName || accountId ? [accountName, accountId].filter(Boolean).join(' / ') : undefined
+    };
+  }
+  if (accountName || accountId) {
+    return {
+      primary: [accountName, accountId].filter(Boolean).join(' / '),
+      secondary: '账号页识别结果'
+    };
+  }
+  return {
+    primary: fallback || '-',
+    secondary: undefined
+  };
+}
+
+function topicRecognitionInfo(topic: any) {
+  const payload = pick<string>(topic, 'ocr_payload_json', 'ocrPayloadJson');
+  const fallback = pick<string>(topic, 'ocr_title', 'ocrTitle') || pick<string>(topic, 'sub_topic_name', 'subTopicName');
+  return buildRecognitionInfo(resultOf(payload), fallback);
+}
+
+function assetRecognitionInfo(asset: any) {
+  const payload = pick<string>(asset, 'ocr_payload_json', 'ocrPayloadJson') || pick<string>(asset, 'data_payload_json', 'dataPayloadJson') || pick<string>(asset, 'parsed_result_json', 'parsedResultJson');
+  return buildRecognitionInfo(resultOf(payload));
+}
+
+function renderRecognitionResult(topic: any) {
+  const info = topicRecognitionInfo(topic);
+  return <div>
+    <div style={{ fontWeight: 600 }}>{info.primary}</div>
+    {info.secondary ? <div style={{ marginTop: 4, opacity: 0.65, fontSize: 12 }}>{info.secondary}</div> : null}
+  </div>;
+}
+
 export default function OperationDataPage() {
   const today = dayjs().format('YYYY-MM-DD');
   const [loading, setLoading] = useState(false);
@@ -330,8 +404,8 @@ export default function OperationDataPage() {
     setFlag(setRecognizingTopicIds, topic.id, true);
     try {
       const result = await dataOpsApi.recognizeAsset(assetId, { platform, scene: 'CONTENT_DETAIL' });
-      const title = result?.result?.contentTitle || result?.result?.topicName || result?.result?.title || result?.result?.name;
-      message.success(title ? `封面识别成功：${title}` : '封面识别成功');
+      const info = buildRecognitionInfo(result?.result);
+      message.success(info.primary && info.primary !== '-' ? `封面识别成功：${info.primary}` : '封面识别成功');
       setSelectedTopicId(topic.id);
       await refreshPackageDetail();
     } finally {
@@ -384,17 +458,19 @@ export default function OperationDataPage() {
     }
   };
 
-  const renderAssetCard = (asset: DataOpsAsset, label: string) => {
+  const renderAssetCard = (asset: DataOpsAsset, label: string, wrap = true) => {
     const url = toPreviewUrl(assetUrl(asset));
     const status = assetStatus(asset);
-    return <Col xs={24} sm={12} md={8} lg={6} key={`${label}-${asset.id}`}>
-      <Card size='small' title={label} extra={<Tag color={statusColor(status)}>{status}</Tag>}>
-        {url ? <Image src={url} alt={assetFileName(asset)} width='100%' height={120} style={{ objectFit: 'cover', borderRadius: 6 }} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description='无预览' />}
-        <div style={{ marginTop: 8, fontWeight: 600, wordBreak: 'break-all' }}>{assetFileName(asset)}</div>
-        <div style={{ marginTop: 4, opacity: 0.7, fontSize: 12 }}>上传时间：{assetCreatedAt(asset)}</div>
-        {assetError(asset) ? <div style={{ marginTop: 6, color: '#ff4d4f', fontSize: 12, wordBreak: 'break-all' }}>失败原因：{assetError(asset)}</div> : null}
-      </Card>
-    </Col>;
+    const info = assetRecognitionInfo(asset);
+    const card = <Card size='small' title={label} extra={<Tag color={statusColor(status)}>{status}</Tag>}>
+      {url ? <Image src={url} alt={assetFileName(asset)} width='100%' height={120} style={{ objectFit: 'cover', borderRadius: 6 }} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description='无预览' />}
+      <div style={{ marginTop: 8, fontWeight: 600, wordBreak: 'break-all' }}>{assetFileName(asset)}</div>
+      {info.primary && info.primary !== '-' ? <div style={{ marginTop: 6, color: '#1677ff', fontSize: 12, wordBreak: 'break-all' }}>识别结果：{info.primary}</div> : null}
+      {info.secondary ? <div style={{ marginTop: 2, opacity: 0.65, fontSize: 12, wordBreak: 'break-all' }}>{info.secondary}</div> : null}
+      <div style={{ marginTop: 4, opacity: 0.7, fontSize: 12 }}>上传时间：{assetCreatedAt(asset)}</div>
+      {assetError(asset) ? <div style={{ marginTop: 6, color: '#ff4d4f', fontSize: 12, wordBreak: 'break-all' }}>失败原因：{assetError(asset)}</div> : null}
+    </Card>;
+    return wrap ? <Col xs={24} sm={12} md={8} lg={6} key={`${label}-${asset.id}`}>{card}</Col> : card;
   };
 
   const generateReport = async () => {
@@ -465,7 +541,7 @@ export default function OperationDataPage() {
                 columns={[
                   { title: '平台', width: 90, render: (_: any, r: any) => pick(r, 'platform_name', 'platformName') || platformLabelMap[pick(r, 'platform_code', 'platformCode')] || pick(r, 'platform_code', 'platformCode') },
                   { title: '子主题', render: (_: any, r: any) => pick(r, 'sub_topic_name', 'subTopicName') },
-                  { title: '识别标题', render: (_: any, r: any) => pick(r, 'ocr_title', 'ocrTitle') || '-' },
+                  { title: '识别结果', render: (_: any, r: any) => renderRecognitionResult(r) },
                   { title: '封面', width: 90, render: (_: any, r: any) => pick(r, 'cover_image_url', 'coverImageUrl') ? <Tag color='green'>已上传</Tag> : <Tag>未上传</Tag> },
                   { title: '识别状态', width: 120, render: (_: any, r: any) => { const v = pick<string>(r, 'ocr_status', 'ocrStatus') || 'pending'; return <Tag color={statusColor(v)}>{v}</Tag>; } },
                   { title: '操作', width: 500, render: (_: any, r: DataOpsPlatformTopic) => {
@@ -512,7 +588,7 @@ export default function OperationDataPage() {
                   <Row gutter={[16,16]}>
                     <Col xs={24} lg={8}>
                       <Card size='small' title='封面图' extra={coverAsset ? <Tag color={statusColor(assetStatus(coverAsset))}>{assetStatus(coverAsset)}</Tag> : <Tag>未上传</Tag>}>
-                        {coverAsset ? renderAssetCard(coverAsset, '当前封面') : <Empty description='当前子主题还没有上传封面' />}
+                        {coverAsset ? renderAssetCard(coverAsset, '当前封面', false) : <Empty description='当前子主题还没有上传封面' />}
                       </Card>
                     </Col>
                     <Col xs={24} lg={16}>
