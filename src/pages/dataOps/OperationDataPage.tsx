@@ -71,6 +71,9 @@ export default function OperationDataPage() {
   const today = dayjs().format('YYYY-MM-DD');
   const [loading, setLoading] = useState(false);
   const [reportGenerating, setReportGenerating] = useState(false);
+  const [packageSubmitting, setPackageSubmitting] = useState(false);
+  const [topicSubmitting, setTopicSubmitting] = useState(false);
+  const [contentSubmitting, setContentSubmitting] = useState(false);
   const [coverUploadingIds, setCoverUploadingIds] = useState<Set<number>>(new Set());
   const [recognizingTopicIds, setRecognizingTopicIds] = useState<Set<number>>(new Set());
   const [generatingTopicIds, setGeneratingTopicIds] = useState<Set<number>>(new Set());
@@ -182,50 +185,64 @@ export default function OperationDataPage() {
   const failedCount = selectedContents.filter((item: any) => item.status === 'failed' || pick(item, 'recognition_status', 'recognitionStatus') === 'failed').length;
 
   const createPackage = async () => {
-    const values = await packageForm.validateFields();
-    const created = await dataOpsApi.createPackage({
-      topicDate: values.topicDate || today,
-      operatorUserIds: values.operatorUserIds.map(Number),
-      mediaUserIds: values.mediaUserIds.map(Number)
-    });
-    message.success('主题包已创建');
-    setPackageOpen(false);
-    packageForm.resetFields();
-    setSelectedPackage(created);
-    setSelectedPlatform('DOUYIN');
-    setSelectedTopicId(undefined);
-    setPackages(rows => mergePackage(rows, created));
-    refreshPackageDetail(created.id).catch(() => undefined);
+    if (packageSubmitting) return;
+    setPackageSubmitting(true);
+    try {
+      const values = await packageForm.validateFields();
+      const created = await dataOpsApi.createPackage({
+        topicDate: values.topicDate || today,
+        operatorUserIds: values.operatorUserIds.map(Number),
+        mediaUserIds: values.mediaUserIds.map(Number)
+      });
+      message.success('主题包已创建');
+      setPackageOpen(false);
+      packageForm.resetFields();
+      setSelectedPackage(created);
+      setSelectedPlatform('DOUYIN');
+      setSelectedTopicId(undefined);
+      setPackages(rows => mergePackage(rows, created));
+      refreshPackageDetail(created.id).catch(() => undefined);
+    } finally {
+      setPackageSubmitting(false);
+    }
   };
 
   const createTopic = async () => {
+    if (topicSubmitting) return;
     if (!selectedPackage?.id) return message.warning('请先选择主题包');
-    const values = await topicForm.validateFields();
-    const platformCode = values.platformCode as PlatformCode;
-    const created = await dataOpsApi.createPlatformTopic(selectedPackage.id, { platformCode, subTopicName: values.subTopicName });
-    const nextPackage: DataOpsPackage = {
-      ...selectedPackage,
-      platformTopics: [created, ...(selectedPackage.platformTopics || []).filter(topic => topic.id !== created.id)]
-    };
-    message.success('平台子主题已创建');
-    setTopicOpen(false);
-    topicForm.resetFields();
-    setSelectedPlatform(platformCode);
-    setSelectedTopicId(created.id);
-    setSelectedPackage(nextPackage);
-    setPackages(rows => mergePackage(rows, nextPackage));
-    const detail = await refreshPackageDetail(selectedPackage.id);
-    const latestTopic = detail?.platformTopics?.find(topic => topic.id === created.id);
-    if (latestTopic) setSelectedTopicId(latestTopic.id);
+    setTopicSubmitting(true);
+    try {
+      const values = await topicForm.validateFields();
+      const platformCode = values.platformCode as PlatformCode;
+      const created = await dataOpsApi.createPlatformTopic(selectedPackage.id, { platformCode, subTopicName: values.subTopicName });
+      const nextPackage: DataOpsPackage = {
+        ...selectedPackage,
+        platformTopics: [created, ...(selectedPackage.platformTopics || []).filter(topic => topic.id !== created.id)]
+      };
+      message.success('平台子主题已创建');
+      setTopicOpen(false);
+      topicForm.resetFields();
+      setSelectedPlatform(platformCode);
+      setSelectedTopicId(created.id);
+      setSelectedPackage(nextPackage);
+      setPackages(rows => mergePackage(rows, nextPackage));
+      const detail = await refreshPackageDetail(selectedPackage.id);
+      const latestTopic = detail?.platformTopics?.find(topic => topic.id === created.id);
+      if (latestTopic) setSelectedTopicId(latestTopic.id);
+    } finally {
+      setTopicSubmitting(false);
+    }
   };
 
   const openTopicModal = (platformCode: PlatformCode) => {
+    if (topicSubmitting) return;
     topicForm.setFieldValue('platformCode', platformCode);
     setSelectedPlatform(platformCode);
     setTopicOpen(true);
   };
 
   const openConfirmContent = (topic: DataOpsPlatformTopic) => {
+    if (contentSubmitting) return;
     setActiveTopic(topic);
     setSelectedTopicId(topic.id);
     contentForm.setFieldsValue({
@@ -236,14 +253,20 @@ export default function OperationDataPage() {
   };
 
   const confirmContent = async () => {
+    if (contentSubmitting) return;
     if (!activeTopic?.id) return;
-    const values = await contentForm.validateFields();
-    await dataOpsApi.confirmContent(activeTopic.id, { contentTitle: values.contentTitle, contentSummary: values.contentSummary, contentDate: values.contentDate || today });
-    message.success('主题内容已确认创建');
-    setContentOpen(false);
-    contentForm.resetFields();
-    setSelectedTopicId(activeTopic.id);
-    await refreshPackageDetail();
+    setContentSubmitting(true);
+    try {
+      const values = await contentForm.validateFields();
+      await dataOpsApi.confirmContent(activeTopic.id, { contentTitle: values.contentTitle, contentSummary: values.contentSummary, contentDate: values.contentDate || today });
+      message.success('主题内容已确认创建');
+      setContentOpen(false);
+      contentForm.resetFields();
+      setSelectedTopicId(activeTopic.id);
+      await refreshPackageDetail();
+    } finally {
+      setContentSubmitting(false);
+    }
   };
 
   const recognizeCover = async (topic: DataOpsPlatformTopic) => {
@@ -339,7 +362,7 @@ export default function OperationDataPage() {
 
   return (
     <>
-      <PageHeader title='运营数据' extra={<Space><Button type='primary' icon={<PlusOutlined />} onClick={() => setPackageOpen(true)}>创建主题包</Button><Button loading={reportGenerating} onClick={generateReport}>生成当日报告</Button></Space>} />
+      <PageHeader title='运营数据' extra={<Space><Button type='primary' icon={<PlusOutlined />} onClick={() => setPackageOpen(true)} disabled={packageSubmitting}>创建主题包</Button><Button loading={reportGenerating} onClick={generateReport}>生成当日报告</Button></Space>} />
       <Row gutter={[16,16]}>
         <Col xs={24} sm={12} lg={6}><Card><Statistic title='当前平台子主题' value={selectedPlatformTopics.length} /></Card></Col>
         <Col xs={24} sm={12} lg={6}><Card><Statistic title='当前主题内容' value={selectedContents.length} /></Card></Col>
@@ -356,12 +379,12 @@ export default function OperationDataPage() {
           <Card
             loading={loading}
             title={selectedPackage ? `${pick<string>(selectedPackage, 'display_name', 'displayName') || '主题包工作区'} / ${platformLabelMap[selectedPlatform] || selectedPlatform}` : '主题包工作区'}
-            extra={<Space><Tag color='blue'>{platformLabelMap[selectedPlatform] || selectedPlatform}</Tag><Button icon={<PlusOutlined />} onClick={() => openTopicModal(selectedPlatform)}>创建{platformLabelMap[selectedPlatform] || ''}子主题</Button></Space>}
+            extra={<Space><Tag color='blue'>{platformLabelMap[selectedPlatform] || selectedPlatform}</Tag><Button icon={<PlusOutlined />} disabled={topicSubmitting} onClick={() => openTopicModal(selectedPlatform)}>创建{platformLabelMap[selectedPlatform] || ''}子主题</Button></Space>}
           >
             {selectedPackage ? <>
               <Row gutter={[16,16]}>
-                <Col xs={24} md={12}><Card hoverable title='抖音' extra={selectedPlatform === 'DOUYIN' ? <Tag color='blue'>当前</Tag> : null}><Button icon={<PlusOutlined />} onClick={() => openTopicModal('DOUYIN')}>创建抖音子主题</Button></Card></Col>
-                <Col xs={24} md={12}><Card hoverable title='小红书' extra={selectedPlatform === 'XIAOHONGSHU' ? <Tag color='blue'>当前</Tag> : null}><Button icon={<PlusOutlined />} onClick={() => openTopicModal('XIAOHONGSHU')}>创建小红书子主题</Button></Card></Col>
+                <Col xs={24} md={12}><Card hoverable title='抖音' extra={selectedPlatform === 'DOUYIN' ? <Tag color='blue'>当前</Tag> : null}><Button icon={<PlusOutlined />} disabled={topicSubmitting} onClick={() => openTopicModal('DOUYIN')}>创建抖音子主题</Button></Card></Col>
+                <Col xs={24} md={12}><Card hoverable title='小红书' extra={selectedPlatform === 'XIAOHONGSHU' ? <Tag color='blue'>当前</Tag> : null}><Button icon={<PlusOutlined />} disabled={topicSubmitting} onClick={() => openTopicModal('XIAOHONGSHU')}>创建小红书子主题</Button></Card></Col>
               </Row>
               <Table
                 className='mt12'
@@ -387,7 +410,7 @@ export default function OperationDataPage() {
                       </Upload>
                       <Button icon={<ScanOutlined />} loading={recognizingTopicIds.has(r.id)} disabled={!topicCoverAssetId(r)} onClick={() => recognizeCover(r)}>识别封面</Button>
                       <Button loading={generating} disabled={!topicCoverAssetId(r)} onClick={() => generateCurrentTopicData(r)}>生成当前主题数据</Button>
-                      <Button type='link' onClick={() => openConfirmContent(r)}>确认主题内容</Button>
+                      <Button type='link' disabled={contentSubmitting} onClick={() => openConfirmContent(r)}>确认主题内容</Button>
                     </Space>;
                   } }
                 ]}
@@ -422,20 +445,20 @@ export default function OperationDataPage() {
         </Col>
       </Row>
 
-      <Modal title='创建主题包' open={packageOpen} onOk={createPackage} onCancel={() => setPackageOpen(false)} destroyOnClose>
+      <Modal title='创建主题包' open={packageOpen} onOk={createPackage} onCancel={() => setPackageOpen(false)} confirmLoading={packageSubmitting} okButtonProps={{ disabled: packageSubmitting }} cancelButtonProps={{ disabled: packageSubmitting }} destroyOnClose>
         <Form form={packageForm} layout='vertical' initialValues={{ topicDate: today }}>
           <Form.Item name='topicDate' label='创建日期' rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name='operatorUserIds' label='选择运营人员' rules={[{ required: true, message: '请选择运营人员' }]}><Select mode='multiple' placeholder='请选择运营人员' options={toUserSelectOptions(operatorUsers)} /></Form.Item>
           <Form.Item name='mediaUserIds' label='选择媒体人员' rules={[{ required: true, message: '请选择媒体人员' }]}><Select mode='multiple' placeholder='请选择媒体人员' options={toUserSelectOptions(mediaUsers)} /></Form.Item>
         </Form>
       </Modal>
-      <Modal title='创建平台子主题' open={topicOpen} onOk={createTopic} onCancel={() => setTopicOpen(false)} destroyOnClose>
+      <Modal title='创建平台子主题' open={topicOpen} onOk={createTopic} onCancel={() => setTopicOpen(false)} confirmLoading={topicSubmitting} okButtonProps={{ disabled: topicSubmitting }} cancelButtonProps={{ disabled: topicSubmitting }} destroyOnClose>
         <Form form={topicForm} layout='vertical'>
           <Form.Item name='platformCode' label='平台' rules={[{ required: true }]}><Select options={platformOptions} /></Form.Item>
           <Form.Item name='subTopicName' label='子主题名称'><Input placeholder='例如：澳洲留学预算数据' /></Form.Item>
         </Form>
       </Modal>
-      <Modal title='确认创建主题内容' open={contentOpen} onOk={confirmContent} onCancel={() => setContentOpen(false)} destroyOnClose>
+      <Modal title='确认创建主题内容' open={contentOpen} onOk={confirmContent} onCancel={() => setContentOpen(false)} confirmLoading={contentSubmitting} okButtonProps={{ disabled: contentSubmitting }} cancelButtonProps={{ disabled: contentSubmitting }} destroyOnClose>
         <Form form={contentForm} layout='vertical' initialValues={{ contentDate: today }}>
           <Form.Item name='contentTitle' label='主题内容标题' rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name='contentSummary' label='内容说明'><Input.TextArea rows={3} /></Form.Item>
