@@ -1,9 +1,10 @@
-import { Button, Card, Col, Empty, Form, Input, Modal, Row, Select, Space, Statistic, Table, Tag, Tree, Upload, message } from 'antd';
+import { Button, Card, Col, Empty, Form, Image, Input, Modal, Row, Select, Space, Statistic, Table, Tag, Tree, Upload, message } from 'antd';
 import { CalendarOutlined, CloudUploadOutlined, FolderOpenOutlined, PlusOutlined, ScanOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '@/components';
-import { dataOpsApi, type DataOpsContent, type DataOpsPackage, type DataOpsPlatformTopic, type DataOpsUserOption, type PlatformCode } from '@/api/dataOps';
+import { dataOpsApi, type DataOpsAsset, type DataOpsContent, type DataOpsPackage, type DataOpsPlatformTopic, type DataOpsUserOption, type PlatformCode } from '@/api/dataOps';
+import { API_ROOT_URL } from '@/api/client';
 
 const platformOptions: { label: string; value: PlatformCode }[] = [
   { label: '抖音', value: 'DOUYIN' },
@@ -30,6 +31,7 @@ function toUserSelectOptions(rows: DataOpsUserOption[]) {
 function statusColor(status?: string) {
   if (status === 'success' || status === 'recognized') return 'green';
   if (status === 'failed') return 'red';
+  if (status === 'processing') return 'blue';
   if (status === 'pending') return 'gold';
   return 'default';
 }
@@ -52,6 +54,41 @@ function contentTopicId(content?: DataOpsContent) {
 
 function contentPlatform(content?: DataOpsContent): PlatformCode | undefined {
   return pick<PlatformCode>(content, 'platform_code', 'platformCode');
+}
+
+function assetTopicId(asset?: DataOpsAsset) {
+  return pick<number>(asset, 'platform_topic_id', 'platformTopicId');
+}
+
+function assetType(asset?: DataOpsAsset) {
+  return pick<string>(asset, 'asset_type', 'assetType');
+}
+
+function assetFileName(asset?: DataOpsAsset) {
+  return pick<string>(asset, 'original_filename', 'originalFilename') || pick<string>(asset, 'file_name', 'fileName') || `图片 ${asset?.id || ''}`;
+}
+
+function assetUrl(asset?: DataOpsAsset) {
+  return pick<string>(asset, 'public_url', 'publicUrl') || pick<string>(asset, 'url', 'url') || pick<string>(asset, 'thumbnail_url', 'thumbnailUrl') || '';
+}
+
+function assetStatus(asset?: DataOpsAsset) {
+  return pick<string>(asset, 'recognition_status', 'recognitionStatus') || pick<string>(asset, 'upload_status', 'uploadStatus') || pick<string>(asset, 'status', 'status') || 'pending';
+}
+
+function assetError(asset?: DataOpsAsset) {
+  return pick<string>(asset, 'error_message', 'errorMessage') || pick<string>(asset, 'fail_reason', 'failReason') || '';
+}
+
+function assetCreatedAt(asset?: DataOpsAsset) {
+  return pick<string>(asset, 'created_at', 'createdAt') || pick<string>(asset, 'uploaded_at', 'uploadedAt') || '-';
+}
+
+function toPreviewUrl(url?: string) {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+  const root = API_ROOT_URL.replace(/\/api\/?$/, '');
+  return `${root}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
 function setFlag<T>(setter: React.Dispatch<React.SetStateAction<Set<T>>>, value: T, enabled: boolean) {
@@ -137,6 +174,7 @@ export default function OperationDataPage() {
 
   const platformTopics = selectedPackage?.platformTopics || [];
   const contents = selectedPackage?.contents || [];
+  const assets = selectedPackage?.assets || [];
   const selectedPlatformTopics = useMemo(
     () => platformTopics.filter(topic => topicPlatform(topic) === selectedPlatform),
     [platformTopics, selectedPlatform]
@@ -149,6 +187,22 @@ export default function OperationDataPage() {
     if (selectedTopicId) return contents.filter(content => contentTopicId(content) === selectedTopicId);
     return contents.filter(content => contentPlatform(content) === selectedPlatform);
   }, [contents, selectedPlatform, selectedTopicId]);
+  const selectedTopicAssets = useMemo(
+    () => selectedTopicId ? assets.filter(asset => Number(assetTopicId(asset)) === selectedTopicId) : [],
+    [assets, selectedTopicId]
+  );
+  const coverAsset = useMemo(() => {
+    const coverId = topicCoverAssetId(selectedTopic);
+    return selectedTopicAssets.find(asset => coverId && Number(asset.id) === Number(coverId)) || selectedTopicAssets.find(asset => assetType(asset) === 'COVER');
+  }, [selectedTopic, selectedTopicAssets]);
+  const screenshotAssets = useMemo(
+    () => selectedTopicAssets.filter(asset => assetType(asset) === 'DATA_SCREENSHOT'),
+    [selectedTopicAssets]
+  );
+  const failedAssets = useMemo(
+    () => selectedTopicAssets.filter(asset => assetStatus(asset) === 'failed' || Boolean(assetError(asset))),
+    [selectedTopicAssets]
+  );
 
   useEffect(() => {
     if (!selectedPlatformTopics.length) {
@@ -181,8 +235,8 @@ export default function OperationDataPage() {
   }) : [{ title: today, key: today, icon: <CalendarOutlined />, children: [] }], [packages, today]);
 
   const selectedTreeKeys = selectedPackage ? [`platform-${selectedPackage.id}-${selectedPlatform}`] : [];
-  const screenshotCount = selectedContents.reduce((sum, item: any) => sum + Number(pick(item, 'screenshot_count', 'screenshotCount') || 0), 0);
-  const failedCount = selectedContents.filter((item: any) => item.status === 'failed' || pick(item, 'recognition_status', 'recognitionStatus') === 'failed').length;
+  const failedCount = failedAssets.length;
+  const uploadedImageCount = selectedTopicAssets.length;
 
   const createPackage = async () => {
     if (packageSubmitting) return;
@@ -330,6 +384,19 @@ export default function OperationDataPage() {
     }
   };
 
+  const renderAssetCard = (asset: DataOpsAsset, label: string) => {
+    const url = toPreviewUrl(assetUrl(asset));
+    const status = assetStatus(asset);
+    return <Col xs={24} sm={12} md={8} lg={6} key={`${label}-${asset.id}`}>
+      <Card size='small' title={label} extra={<Tag color={statusColor(status)}>{status}</Tag>}>
+        {url ? <Image src={url} alt={assetFileName(asset)} width='100%' height={120} style={{ objectFit: 'cover', borderRadius: 6 }} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description='无预览' />}
+        <div style={{ marginTop: 8, fontWeight: 600, wordBreak: 'break-all' }}>{assetFileName(asset)}</div>
+        <div style={{ marginTop: 4, opacity: 0.7, fontSize: 12 }}>上传时间：{assetCreatedAt(asset)}</div>
+        {assetError(asset) ? <div style={{ marginTop: 6, color: '#ff4d4f', fontSize: 12, wordBreak: 'break-all' }}>失败原因：{assetError(asset)}</div> : null}
+      </Card>
+    </Col>;
+  };
+
   const generateReport = async () => {
     setReportGenerating(true);
     try {
@@ -366,8 +433,8 @@ export default function OperationDataPage() {
       <Row gutter={[16,16]}>
         <Col xs={24} sm={12} lg={6}><Card><Statistic title='当前平台子主题' value={selectedPlatformTopics.length} /></Card></Col>
         <Col xs={24} sm={12} lg={6}><Card><Statistic title='当前主题内容' value={selectedContents.length} /></Card></Col>
-        <Col xs={24} sm={12} lg={6}><Card><Statistic title='当前上传图片' value={screenshotCount} /></Card></Col>
-        <Col xs={24} sm={12} lg={6}><Card><Statistic title='当前失败任务' value={failedCount} /></Card></Col>
+        <Col xs={24} sm={12} lg={6}><Card><Statistic title='当前上传图片' value={uploadedImageCount} /></Card></Col>
+        <Col xs={24} sm={12} lg={6}><Card><Statistic title='当前失败图片' value={failedCount} /></Card></Col>
       </Row>
       <Row gutter={[16,16]} className='mt12'>
         <Col xs={24} lg={7}>
@@ -439,6 +506,25 @@ export default function OperationDataPage() {
                     }}
                   ><Button loading={screenshotUploadingContentIds.has(r.id)} icon={<CloudUploadOutlined />}>上传数据图片</Button></Upload> }
                 ]} /> : <Empty description={selectedTopic ? '当前子主题还没有确认主题内容' : '请选择一个子主题'} />}
+              </Card>
+              <Card type='inner' title='图片预览与识别状态' className='mt12'>
+                {selectedTopic ? <>
+                  <Row gutter={[16,16]}>
+                    <Col xs={24} lg={8}>
+                      <Card size='small' title='封面图' extra={coverAsset ? <Tag color={statusColor(assetStatus(coverAsset))}>{assetStatus(coverAsset)}</Tag> : <Tag>未上传</Tag>}>
+                        {coverAsset ? renderAssetCard(coverAsset, '当前封面') : <Empty description='当前子主题还没有上传封面' />}
+                      </Card>
+                    </Col>
+                    <Col xs={24} lg={16}>
+                      <Card size='small' title={`数据截图（${screenshotAssets.length} 张）`} extra={<Tag color={failedAssets.length ? 'red' : 'green'}>失败 {failedAssets.length}</Tag>}>
+                        {screenshotAssets.length ? <Row gutter={[12,12]}>{screenshotAssets.map(asset => renderAssetCard(asset, '数据截图'))}</Row> : <Empty description='当前子主题还没有上传数据截图' />}
+                      </Card>
+                    </Col>
+                  </Row>
+                  {failedAssets.length ? <Card size='small' title={`失败图片（${failedAssets.length} 张）`} className='mt12'>
+                    <Row gutter={[12,12]}>{failedAssets.map(asset => renderAssetCard(asset, assetType(asset) === 'COVER' ? '失败封面' : '失败截图'))}</Row>
+                  </Card> : null}
+                </> : <Empty description='请选择一个子主题查看图片预览' />}
               </Card>
             </> : <Empty description='请先创建今日主题包' />}
           </Card>
