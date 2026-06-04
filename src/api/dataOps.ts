@@ -243,6 +243,14 @@ export const dataOpsApi = {
       assets: content.assets.map(asset => normalizeAssetGroup(assetGroup ? { ...asset, asset_group: assetGroup, assetGroup } : asset))
     };
   },
+  async deleteAsset(assetId: number | string) {
+    const res = await client.delete('/data-ops/assets/' + assetId);
+    return unwrapResponse<any>(res.data);
+  },
+  async batchDeleteAssets(assetIds: Array<number | string>) {
+    const res = await client.post('/data-ops/assets/batch-delete', { assetIds: assetIds.map(Number) });
+    return unwrapResponse<any>(res.data);
+  },
   async recognizeAsset(assetId: number | string, params?: { platform?: PlatformCode; scene?: string }) {
     const res = await client.post('/data-ops/assets/' + assetId + '/recognize', null, { params, timeout: 0 });
     return unwrapResponse<DataOpsRecognitionResponse>(res.data);
