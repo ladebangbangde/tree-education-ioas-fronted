@@ -180,7 +180,8 @@ export const dataOpsApi = {
   async createPlatformTopic(packageId: number | string, payload: { platformCode: PlatformCode; subTopicName?: string; contentType?: DataOpsContentType }) {
     const res = await client.post('/data-ops/packages/' + packageId + '/platform-topics', {
       platformCode: payload.platformCode,
-      subTopicName: payload.subTopicName
+      subTopicName: payload.subTopicName,
+      contentType: payload.contentType
     });
     return unwrapResponse<DataOpsPlatformTopic>(res.data);
   },
@@ -198,13 +199,15 @@ export const dataOpsApi = {
     const res = await client.post('/data-ops/platform-topics/' + topicId + '/contents/confirm', {
       contentTitle: payload.contentTitle,
       contentSummary: payload.contentSummary,
-      contentDate: payload.contentDate
+      contentDate: payload.contentDate,
+      contentType: payload.contentType
     });
     return unwrapResponse<DataOpsContent>(res.data);
   },
   async uploadScreenshots(contentId: number | string, files: File[], assetGroup?: DataOpsAssetGroup) {
     const form = new FormData();
     files.forEach(file => form.append('files', file));
+    if (assetGroup) form.append('assetGroup', assetGroup);
     const res = await client.post('/data-ops/contents/' + contentId + '/screenshots', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
     return unwrapResponse<DataOpsContent>(res.data);
   },
