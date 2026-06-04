@@ -160,15 +160,23 @@ export interface DataOpsCurrentTopicGenerateResponse {
   package?: DataOpsPackage;
 }
 
+function withStablePreviewUrl(asset: DataOpsAsset): DataOpsAsset {
+  if (!asset?.id) return asset;
+  const url = `/api/v1/data-ops/assets/${asset.id}/file`;
+  return { ...asset, public_url: url, publicUrl: url, url, thumbnail_url: url, thumbnailUrl: url };
+}
+
 function normalizeAssetGroup(asset: DataOpsAsset): DataOpsAsset {
-  if (asset.asset_group || asset.assetGroup) return asset;
-  const marker = `${asset.object_key || asset.objectKey || asset.public_url || asset.publicUrl || asset.url || ''}`.toLowerCase();
+  const withPreview = withStablePreviewUrl(asset);
+  const currentGroup = withPreview.asset_group || withPreview.assetGroup;
+  if (currentGroup) return withPreview;
+  const marker = `${withPreview.object_key || withPreview.objectKey || asset.public_url || asset.publicUrl || ''}`.toLowerCase();
   let group: DataOpsAssetGroup | undefined;
   if (marker.includes('douyin_flow_analysis')) group = 'DOUYIN_FLOW_ANALYSIS';
   else if (marker.includes('douyin_overview_chart')) group = 'DOUYIN_OVERVIEW_CHART';
   else if (marker.includes('douyin_overview')) group = 'DOUYIN_OVERVIEW';
-  if (!group) return asset;
-  return { ...asset, asset_group: group, assetGroup: group };
+  if (!group) return withPreview;
+  return { ...withPreview, asset_group: group, assetGroup: group };
 }
 
 function normalizePackage(pkg: DataOpsPackage): DataOpsPackage {
@@ -229,10 +237,10 @@ export const dataOpsApi = {
     if (assetGroup) form.append('assetGroup', assetGroup);
     const res = await client.post('/data-ops/contents/' + contentId + '/screenshots', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
     const content = unwrapResponse<DataOpsContent>(res.data);
-    if (!content.assets?.length || !assetGroup) return content;
+    if (!content.assets?.length) return content;
     return {
       ...content,
-      assets: content.assets.map(asset => ({ ...asset, asset_group: assetGroup, assetGroup }))
+      assets: content.assets.map(asset => normalizeAssetGroup(assetGroup ? { ...asset, asset_group: assetGroup, assetGroup } : asset))
     };
   },
   async recognizeAsset(assetId: number | string, params?: { platform?: PlatformCode; scene?: string }) {
