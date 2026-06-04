@@ -1,9 +1,9 @@
-import { Button, Card, Col, Empty, Form, Image, Input, Modal, Row, Select, Space, Statistic, Table, Tag, Tree, Upload, message } from 'antd';
+import { Button, Card, Col, Empty, Form, Image, Input, Modal, Row, Select, Space, Statistic, Table, Tabs, Tag, Tree, Upload, message } from 'antd';
 import { CalendarOutlined, CloudUploadOutlined, FolderOpenOutlined, PlusOutlined, ScanOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '@/components';
-import { dataOpsApi, type DataOpsAsset, type DataOpsContent, type DataOpsPackage, type DataOpsPlatformTopic, type DataOpsUserOption, type PlatformCode } from '@/api/dataOps';
+import { dataOpsApi, type DataOpsAsset, type DataOpsAssetGroup, type DataOpsContent, type DataOpsContentType, type DataOpsPackage, type DataOpsPlatformTopic, type DataOpsUserOption, type PlatformCode } from '@/api/dataOps';
 import { API_ROOT_URL } from '@/api/client';
 
 const platformOptions: { label: string; value: PlatformCode }[] = [
@@ -11,10 +11,26 @@ const platformOptions: { label: string; value: PlatformCode }[] = [
   { label: '小红书', value: 'XIAOHONGSHU' }
 ];
 
+const contentTypeOptions: { label: string; value: DataOpsContentType }[] = [
+  { label: '图文', value: 'IMAGE_TEXT' },
+  { label: '视频', value: 'VIDEO' }
+];
+
+const douyinAssetGroups: { key: DataOpsAssetGroup; title: string; desc: string }[] = [
+  { key: 'DOUYIN_OVERVIEW', title: '总览', desc: '播放量、点赞量、评论量、分享量、收藏量、划走率等总览指标' },
+  { key: 'DOUYIN_OVERVIEW_CHART', title: '总览图表数据', desc: '总览页的趋势曲线、粉丝趋势、小时/每日图表' },
+  { key: 'DOUYIN_FLOW_ANALYSIS', title: '流量分析', desc: '流量上涨、内容吸引力、评论率、分享率等流量分析指标' }
+];
+
 const platformLabelMap: Record<string, string> = {
   DOUYIN: '抖音',
   XIAOHONGSHU: '小红书',
   WECHAT_CHANNEL: '视频号'
+};
+
+const contentTypeLabelMap: Record<string, string> = {
+  IMAGE_TEXT: '图文',
+  VIDEO: '视频'
 };
 
 function pick<T = any>(row: any, a: string, b: string): T {
@@ -36,12 +52,24 @@ function statusColor(status?: string) {
   return 'default';
 }
 
+function packageDate(pkg?: DataOpsPackage) {
+  return pick<string>(pkg, 'topic_date', 'topicDate') || dayjs().format('YYYY-MM-DD');
+}
+
+function packageTitle(pkg?: DataOpsPackage) {
+  return pick<string>(pkg, 'display_name', 'displayName') || pick<string>(pkg, 'folder_name', 'folderName') || '数据主题包';
+}
+
 function topicCoverAssetId(topic?: DataOpsPlatformTopic) {
   return pick<number>(topic, 'cover_asset_id', 'coverAssetId') || topic?.asset?.id;
 }
 
 function topicPlatform(topic?: DataOpsPlatformTopic): PlatformCode | undefined {
   return pick<PlatformCode>(topic, 'platform_code', 'platformCode');
+}
+
+function topicContentType(topic?: DataOpsPlatformTopic): DataOpsContentType {
+  return pick<DataOpsContentType>(topic, 'content_type', 'contentType') || 'IMAGE_TEXT';
 }
 
 function topicDisplayName(topic?: DataOpsPlatformTopic) {
@@ -56,12 +84,20 @@ function contentPlatform(content?: DataOpsContent): PlatformCode | undefined {
   return pick<PlatformCode>(content, 'platform_code', 'platformCode');
 }
 
+function contentContentType(content?: DataOpsContent): DataOpsContentType {
+  return pick<DataOpsContentType>(content, 'content_type', 'contentType') || 'IMAGE_TEXT';
+}
+
 function assetTopicId(asset?: DataOpsAsset) {
   return pick<number>(asset, 'platform_topic_id', 'platformTopicId');
 }
 
 function assetType(asset?: DataOpsAsset) {
   return pick<string>(asset, 'asset_type', 'assetType');
+}
+
+function assetGroup(asset?: DataOpsAsset): DataOpsAssetGroup {
+  return pick<DataOpsAssetGroup>(asset, 'asset_group', 'assetGroup') || 'DOUYIN_OVERVIEW';
 }
 
 function assetFileName(asset?: DataOpsAsset) {
@@ -108,11 +144,7 @@ function parseJson(value: any): any {
   if (!value) return undefined;
   if (typeof value === 'object') return value;
   if (typeof value !== 'string') return undefined;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return undefined;
-  }
+  try { return JSON.parse(value); } catch { return undefined; }
 }
 
 function resultOf(payload: any) {
@@ -153,10 +185,7 @@ function buildRecognitionInfo(result: any, fallback?: string) {
       secondary: '账号页识别结果'
     };
   }
-  return {
-    primary: fallback || '-',
-    secondary: undefined
-  };
+  return { primary: fallback || '-', secondary: undefined };
 }
 
 function topicRecognitionInfo(topic: any) {
@@ -192,6 +221,7 @@ export default function OperationDataPage() {
   const [packages, setPackages] = useState<DataOpsPackage[]>([]);
   const [selectedPackage, setSelectedPackage] = useState<DataOpsPackage>();
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformCode>('DOUYIN');
+  const [selectedContentType, setSelectedContentType] = useState<DataOpsContentType>('IMAGE_TEXT');
   const [selectedTopicId, setSelectedTopicId] = useState<number>();
   const [operatorUsers, setOperatorUsers] = useState<DataOpsUserOption[]>([]);
   const [mediaUsers, setMediaUsers] = useState<DataOpsUserOption[]>([]);
@@ -208,11 +238,7 @@ export default function OperationDataPage() {
     try {
       const rows = await dataOpsApi.packages({ date: today });
       const hydrated = await Promise.all((rows || []).map(async row => {
-        try {
-          return await dataOpsApi.packageDetail(row.id);
-        } catch {
-          return row;
-        }
+        try { return await dataOpsApi.packageDetail(row.id); } catch { return row; }
       }));
       setPackages(hydrated);
       if (selectedPackage?.id) {
@@ -250,8 +276,8 @@ export default function OperationDataPage() {
   const contents = selectedPackage?.contents || [];
   const assets = selectedPackage?.assets || [];
   const selectedPlatformTopics = useMemo(
-    () => platformTopics.filter(topic => topicPlatform(topic) === selectedPlatform),
-    [platformTopics, selectedPlatform]
+    () => platformTopics.filter(topic => topicPlatform(topic) === selectedPlatform && topicContentType(topic) === selectedContentType),
+    [platformTopics, selectedPlatform, selectedContentType]
   );
   const selectedTopic = useMemo(
     () => selectedPlatformTopics.find(topic => topic.id === selectedTopicId),
@@ -259,8 +285,9 @@ export default function OperationDataPage() {
   );
   const selectedContents = useMemo(() => {
     if (selectedTopicId) return contents.filter(content => contentTopicId(content) === selectedTopicId);
-    return contents.filter(content => contentPlatform(content) === selectedPlatform);
-  }, [contents, selectedPlatform, selectedTopicId]);
+    return contents.filter(content => contentPlatform(content) === selectedPlatform && contentContentType(content) === selectedContentType);
+  }, [contents, selectedPlatform, selectedContentType, selectedTopicId]);
+  const selectedContent = selectedContents[0];
   const selectedTopicAssets = useMemo(
     () => selectedTopicId ? assets.filter(asset => Number(assetTopicId(asset)) === selectedTopicId) : [],
     [assets, selectedTopicId]
@@ -288,25 +315,33 @@ export default function OperationDataPage() {
     }
   }, [selectedPlatformTopics, selectedTopicId]);
 
-  const treeData = useMemo(() => packages.length ? packages.map(pkg => {
-    const topics = pkg.platformTopics || [];
-    const douyinCount = topics.filter(topic => topicPlatform(topic) === 'DOUYIN').length;
-    const xhsCount = topics.filter(topic => topicPlatform(topic) === 'XIAOHONGSHU').length;
-    return {
-      title: `${pick<string>(pkg, 'topic_date', 'topicDate') || today}`,
-      key: `date-${pkg.id}`,
+  const treeData = useMemo(() => {
+    if (!packages.length) return [{ title: today, key: `date-${today}`, icon: <CalendarOutlined />, children: [] }];
+    const groups = new Map<string, DataOpsPackage[]>();
+    packages.forEach(pkg => {
+      const date = packageDate(pkg);
+      groups.set(date, [...(groups.get(date) || []), pkg]);
+    });
+    return Array.from(groups.entries()).map(([date, datePackages]) => ({
+      title: `${date}（${datePackages.length} 个主题包）`,
+      key: `date-${date}`,
       icon: <CalendarOutlined />,
-      children: [{
-        title: pick<string>(pkg, 'display_name', 'displayName') || '数据主题包',
-        key: `package-${pkg.id}`,
-        icon: <FolderOpenOutlined />,
-        children: [
-          { title: `抖音 (${douyinCount})`, key: `platform-${pkg.id}-DOUYIN` },
-          { title: `小红书 (${xhsCount})`, key: `platform-${pkg.id}-XIAOHONGSHU` }
-        ]
-      }]
-    };
-  }) : [{ title: today, key: today, icon: <CalendarOutlined />, children: [] }], [packages, today]);
+      children: datePackages.map(pkg => {
+        const topics = pkg.platformTopics || [];
+        const douyinCount = topics.filter(topic => topicPlatform(topic) === 'DOUYIN').length;
+        const xhsCount = topics.filter(topic => topicPlatform(topic) === 'XIAOHONGSHU').length;
+        return {
+          title: packageTitle(pkg),
+          key: `package-${pkg.id}`,
+          icon: <FolderOpenOutlined />,
+          children: [
+            { title: `抖音 (${douyinCount})`, key: `platform-${pkg.id}-DOUYIN` },
+            { title: `小红书 (${xhsCount})`, key: `platform-${pkg.id}-XIAOHONGSHU` }
+          ]
+        };
+      })
+    }));
+  }, [packages, today]);
 
   const selectedTreeKeys = selectedPackage ? [`platform-${selectedPackage.id}-${selectedPlatform}`] : [];
   const failedCount = failedAssets.length;
@@ -327,6 +362,7 @@ export default function OperationDataPage() {
       packageForm.resetFields();
       setSelectedPackage(created);
       setSelectedPlatform('DOUYIN');
+      setSelectedContentType('IMAGE_TEXT');
       setSelectedTopicId(undefined);
       setPackages(rows => mergePackage(rows, created));
       refreshPackageDetail(created.id).catch(() => undefined);
@@ -342,7 +378,8 @@ export default function OperationDataPage() {
     try {
       const values = await topicForm.validateFields();
       const platformCode = values.platformCode as PlatformCode;
-      const created = await dataOpsApi.createPlatformTopic(selectedPackage.id, { platformCode, subTopicName: values.subTopicName });
+      const contentType = (values.contentType || selectedContentType) as DataOpsContentType;
+      const created = await dataOpsApi.createPlatformTopic(selectedPackage.id, { platformCode, contentType, subTopicName: values.subTopicName });
       const nextPackage: DataOpsPackage = {
         ...selectedPackage,
         platformTopics: [created, ...(selectedPackage.platformTopics || []).filter(topic => topic.id !== created.id)]
@@ -351,6 +388,7 @@ export default function OperationDataPage() {
       setTopicOpen(false);
       topicForm.resetFields();
       setSelectedPlatform(platformCode);
+      setSelectedContentType(contentType);
       setSelectedTopicId(created.id);
       setSelectedPackage(nextPackage);
       setPackages(rows => mergePackage(rows, nextPackage));
@@ -364,17 +402,20 @@ export default function OperationDataPage() {
 
   const openTopicModal = (platformCode: PlatformCode) => {
     if (topicSubmitting) return;
-    topicForm.setFieldValue('platformCode', platformCode);
+    topicForm.setFieldsValue({ platformCode, contentType: selectedContentType });
     setSelectedPlatform(platformCode);
     setTopicOpen(true);
   };
 
   const openConfirmContent = (topic: DataOpsPlatformTopic) => {
     if (contentSubmitting) return;
+    const contentType = topicContentType(topic);
     setActiveTopic(topic);
     setSelectedTopicId(topic.id);
+    setSelectedContentType(contentType);
     contentForm.setFieldsValue({
       contentTitle: topicDisplayName(topic),
+      contentType,
       contentDate: today
     });
     setContentOpen(true);
@@ -386,7 +427,12 @@ export default function OperationDataPage() {
     setContentSubmitting(true);
     try {
       const values = await contentForm.validateFields();
-      await dataOpsApi.confirmContent(activeTopic.id, { contentTitle: values.contentTitle, contentSummary: values.contentSummary, contentDate: values.contentDate || today });
+      await dataOpsApi.confirmContent(activeTopic.id, {
+        contentTitle: values.contentTitle,
+        contentSummary: values.contentSummary,
+        contentType: values.contentType || topicContentType(activeTopic),
+        contentDate: values.contentDate || today
+      });
       message.success('主题内容已确认创建');
       setContentOpen(false);
       contentForm.resetFields();
@@ -425,12 +471,13 @@ export default function OperationDataPage() {
     }
   };
 
-  const uploadScreenshots = async (content: DataOpsContent, files: File[]) => {
+  const uploadScreenshots = async (content: DataOpsContent | undefined, files: File[], group: DataOpsAssetGroup) => {
+    if (!content?.id) return message.warning('请先确认主题内容，再上传数据截图');
     const rawFiles = files.filter(Boolean);
     if (!rawFiles.length) return message.warning('请选择数据截图');
     setFlag(setScreenshotUploadingContentIds, content.id, true);
     try {
-      await dataOpsApi.uploadScreenshots(content.id, rawFiles);
+      await dataOpsApi.uploadScreenshots(content.id, rawFiles, group);
       message.success('数据截图上传成功，等待识别');
       await refreshPackageDetail();
     } finally {
@@ -473,6 +520,30 @@ export default function OperationDataPage() {
     return wrap ? <Col xs={24} sm={12} md={8} lg={6} key={`${label}-${asset.id}`}>{card}</Col> : card;
   };
 
+  const renderAssetGroupPanel = (group: typeof douyinAssetGroups[number]) => {
+    const groupedAssets = screenshotAssets.filter(asset => assetGroup(asset) === group.key);
+    return <Card key={group.key} size='small' title={group.title} extra={<Tag color={groupedAssets.some(item => assetStatus(item) === 'failed') ? 'red' : 'blue'}>{groupedAssets.length} 张</Tag>}>
+      <div style={{ marginBottom: 12, opacity: 0.65 }}>{group.desc}</div>
+      <Upload
+        multiple
+        showUploadList={false}
+        customRequest={async options => {
+          try {
+            await uploadScreenshots(selectedContent, [options.file as File], group.key);
+            options.onSuccess?.({}, options.file as any);
+          } catch (error) {
+            options.onError?.(error as Error);
+          }
+        }}
+      >
+        <Button icon={<CloudUploadOutlined />} loading={selectedContent?.id ? screenshotUploadingContentIds.has(selectedContent.id) : false}>上传{group.title}图片</Button>
+      </Upload>
+      <div className='mt12'>
+        {groupedAssets.length ? <Row gutter={[12,12]}>{groupedAssets.map(asset => renderAssetCard(asset, group.title))}</Row> : <Empty description={`还没有上传${group.title}图片`} />}
+      </div>
+    </Card>;
+  };
+
   const generateReport = async () => {
     setReportGenerating(true);
     try {
@@ -492,6 +563,7 @@ export default function OperationDataPage() {
       const pkg = packages.find(item => item.id === Number(packageId));
       if (pkg) setSelectedPackage(pkg);
       setSelectedPlatform(platform as PlatformCode);
+      setSelectedContentType('IMAGE_TEXT');
       setSelectedTopicId(undefined);
       return;
     }
@@ -499,6 +571,13 @@ export default function OperationDataPage() {
       const id = Number(key.replace('package-', ''));
       const pkg = packages.find(item => item.id === id);
       if (pkg) setSelectedPackage(pkg);
+      setSelectedTopicId(undefined);
+      return;
+    }
+    if (key.startsWith('date-')) {
+      const date = key.replace('date-', '');
+      const first = packages.find(pkg => packageDate(pkg) === date);
+      if (first) setSelectedPackage(first);
       setSelectedTopicId(undefined);
     }
   };
@@ -513,15 +592,15 @@ export default function OperationDataPage() {
         <Col xs={24} sm={12} lg={6}><Card><Statistic title='当前失败图片' value={failedCount} /></Card></Col>
       </Row>
       <Row gutter={[16,16]} className='mt12'>
-        <Col xs={24} lg={7}>
-          <Card title='主题路径'>
+        <Col xs={24} lg={5}>
+          <Card title='主题路径' bodyStyle={{ maxHeight: 520, overflow: 'auto', paddingRight: 8 }}>
             <Tree showIcon defaultExpandAll selectedKeys={selectedTreeKeys} treeData={treeData} onSelect={handleTreeSelect} />
           </Card>
         </Col>
-        <Col xs={24} lg={17}>
+        <Col xs={24} lg={19}>
           <Card
             loading={loading}
-            title={selectedPackage ? `${pick<string>(selectedPackage, 'display_name', 'displayName') || '主题包工作区'} / ${platformLabelMap[selectedPlatform] || selectedPlatform}` : '主题包工作区'}
+            title={selectedPackage ? `${packageTitle(selectedPackage)} / ${platformLabelMap[selectedPlatform] || selectedPlatform}` : '主题包工作区'}
             extra={<Space><Tag color='blue'>{platformLabelMap[selectedPlatform] || selectedPlatform}</Tag><Button icon={<PlusOutlined />} disabled={topicSubmitting} onClick={() => openTopicModal(selectedPlatform)}>创建{platformLabelMap[selectedPlatform] || ''}子主题</Button></Space>}
           >
             {selectedPackage ? <>
@@ -529,17 +608,21 @@ export default function OperationDataPage() {
                 <Col xs={24} md={12}><Card hoverable title='抖音' extra={selectedPlatform === 'DOUYIN' ? <Tag color='blue'>当前</Tag> : null}><Button icon={<PlusOutlined />} disabled={topicSubmitting} onClick={() => openTopicModal('DOUYIN')}>创建抖音子主题</Button></Card></Col>
                 <Col xs={24} md={12}><Card hoverable title='小红书' extra={selectedPlatform === 'XIAOHONGSHU' ? <Tag color='blue'>当前</Tag> : null}><Button icon={<PlusOutlined />} disabled={topicSubmitting} onClick={() => openTopicModal('XIAOHONGSHU')}>创建小红书子主题</Button></Card></Col>
               </Row>
-              <Table
+              <Tabs
                 className='mt12'
+                activeKey={selectedContentType}
+                onChange={key => { setSelectedContentType(key as DataOpsContentType); setSelectedTopicId(undefined); }}
+                items={contentTypeOptions.map(item => ({ key: item.value, label: item.label }))}
+              />
+              <Table
                 rowKey='id'
                 pagination={{ pageSize: 5, showSizeChanger: false }}
                 dataSource={selectedPlatformTopics as any[]}
-                onRow={record => ({
-                  onClick: () => setSelectedTopicId(record.id)
-                })}
+                onRow={record => ({ onClick: () => setSelectedTopicId(record.id) })}
                 rowClassName={record => record.id === selectedTopicId ? 'ant-table-row-selected' : ''}
                 columns={[
-                  { title: '平台', width: 90, render: (_: any, r: any) => pick(r, 'platform_name', 'platformName') || platformLabelMap[pick(r, 'platform_code', 'platformCode')] || pick(r, 'platform_code', 'platformCode') },
+                  { title: '平台', width: 90, render: (_: any, r: any) => platformLabelMap[pick(r, 'platform_code', 'platformCode')] || pick(r, 'platform_code', 'platformCode') },
+                  { title: '类型', width: 90, render: (_: any, r: any) => <Tag color='purple'>{contentTypeLabelMap[topicContentType(r)]}</Tag> },
                   { title: '子主题', render: (_: any, r: any) => pick(r, 'sub_topic_name', 'subTopicName') },
                   { title: '识别结果', render: (_: any, r: any) => renderRecognitionResult(r) },
                   { title: '封面', width: 90, render: (_: any, r: any) => pick(r, 'cover_image_url', 'coverImageUrl') ? <Tag color='green'>已上传</Tag> : <Tag>未上传</Tag> },
@@ -567,20 +650,9 @@ export default function OperationDataPage() {
                 {selectedContents.length ? <Table rowKey='id' pagination={{ pageSize: 5, showSizeChanger: false }} dataSource={selectedContents as any[]} columns={[
                   { title: '标题', render: (_: any, r: any) => pick(r, 'content_title', 'contentTitle') },
                   { title: '平台', width: 90, render: (_: any, r: any) => platformLabelMap[pick(r, 'platform_code', 'platformCode')] || pick(r, 'platform_code', 'platformCode') },
+                  { title: '类型', width: 90, render: (_: any, r: any) => <Tag color='purple'>{contentTypeLabelMap[contentContentType(r)]}</Tag> },
                   { title: '截图数量', width: 100, render: (_: any, r: any) => pick(r, 'screenshot_count', 'screenshotCount') || 0 },
-                  { title: '状态', width: 110, render: (_: any, r: any) => <Tag color={statusColor(pick(r, 'recognition_status', 'recognitionStatus') || r.status)}>{pick(r, 'recognition_status', 'recognitionStatus') || r.status || 'draft'}</Tag> },
-                  { title: '上传截图', width: 180, render: (_: any, r: DataOpsContent) => <Upload
-                    multiple
-                    showUploadList={false}
-                    customRequest={async options => {
-                      try {
-                        await uploadScreenshots(r, [options.file as File]);
-                        options.onSuccess?.({}, options.file as any);
-                      } catch (error) {
-                        options.onError?.(error as Error);
-                      }
-                    }}
-                  ><Button loading={screenshotUploadingContentIds.has(r.id)} icon={<CloudUploadOutlined />}>上传数据图片</Button></Upload> }
+                  { title: '状态', width: 110, render: (_: any, r: any) => <Tag color={statusColor(pick(r, 'recognition_status', 'recognitionStatus') || r.status)}>{pick(r, 'recognition_status', 'recognitionStatus') || r.status || 'draft'}</Tag> }
                 ]} /> : <Empty description={selectedTopic ? '当前子主题还没有确认主题内容' : '请选择一个子主题'} />}
               </Card>
               <Card type='inner' title='图片预览与识别状态' className='mt12'>
@@ -592,8 +664,10 @@ export default function OperationDataPage() {
                       </Card>
                     </Col>
                     <Col xs={24} lg={16}>
-                      <Card size='small' title={`数据截图（${screenshotAssets.length} 张）`} extra={<Tag color={failedAssets.length ? 'red' : 'green'}>失败 {failedAssets.length}</Tag>}>
-                        {screenshotAssets.length ? <Row gutter={[12,12]}>{screenshotAssets.map(asset => renderAssetCard(asset, '数据截图'))}</Row> : <Empty description='当前子主题还没有上传数据截图' />}
+                      <Card size='small' title='抖音数据图片区' extra={<Tag color={failedAssets.length ? 'red' : 'green'}>失败 {failedAssets.length}</Tag>}>
+                        <Space direction='vertical' size={16} style={{ width: '100%' }}>
+                          {selectedPlatform === 'DOUYIN' ? douyinAssetGroups.map(renderAssetGroupPanel) : <Empty description='小红书图片分组稍后实现' />}
+                        </Space>
                       </Card>
                     </Col>
                   </Row>
@@ -615,14 +689,16 @@ export default function OperationDataPage() {
         </Form>
       </Modal>
       <Modal title='创建平台子主题' open={topicOpen} onOk={createTopic} onCancel={() => setTopicOpen(false)} confirmLoading={topicSubmitting} okButtonProps={{ disabled: topicSubmitting }} cancelButtonProps={{ disabled: topicSubmitting }} destroyOnClose>
-        <Form form={topicForm} layout='vertical'>
+        <Form form={topicForm} layout='vertical' initialValues={{ contentType: selectedContentType }}>
           <Form.Item name='platformCode' label='平台' rules={[{ required: true }]}><Select options={platformOptions} /></Form.Item>
+          <Form.Item name='contentType' label='内容类型' rules={[{ required: true }]}><Select options={contentTypeOptions} /></Form.Item>
           <Form.Item name='subTopicName' label='子主题名称'><Input placeholder='例如：澳洲留学预算数据' /></Form.Item>
         </Form>
       </Modal>
       <Modal title='确认创建主题内容' open={contentOpen} onOk={confirmContent} onCancel={() => setContentOpen(false)} confirmLoading={contentSubmitting} okButtonProps={{ disabled: contentSubmitting }} cancelButtonProps={{ disabled: contentSubmitting }} destroyOnClose>
-        <Form form={contentForm} layout='vertical' initialValues={{ contentDate: today }}>
+        <Form form={contentForm} layout='vertical' initialValues={{ contentDate: today, contentType: selectedContentType }}>
           <Form.Item name='contentTitle' label='主题内容标题' rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name='contentType' label='内容类型' rules={[{ required: true }]}><Select options={contentTypeOptions} /></Form.Item>
           <Form.Item name='contentSummary' label='内容说明'><Input.TextArea rows={3} /></Form.Item>
           <Form.Item name='contentDate' label='内容日期'><Input /></Form.Item>
         </Form>
