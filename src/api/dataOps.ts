@@ -178,7 +178,10 @@ export const dataOpsApi = {
     return unwrapResponse<DataOpsPackage>(res.data);
   },
   async createPlatformTopic(packageId: number | string, payload: { platformCode: PlatformCode; subTopicName?: string; contentType?: DataOpsContentType }) {
-    const res = await client.post('/data-ops/packages/' + packageId + '/platform-topics/typed', payload);
+    const res = await client.post('/data-ops/packages/' + packageId + '/platform-topics', {
+      platformCode: payload.platformCode,
+      subTopicName: payload.subTopicName
+    });
     return unwrapResponse<DataOpsPlatformTopic>(res.data);
   },
   async platformTopics(packageId: number | string) {
@@ -192,15 +195,17 @@ export const dataOpsApi = {
     return unwrapResponse<DataOpsPlatformTopic>(res.data);
   },
   async confirmContent(topicId: number | string, payload: { contentTitle?: string; contentSummary?: string; contentDate?: string; contentType?: DataOpsContentType }) {
-    const res = await client.post('/data-ops/platform-topics/' + topicId + '/contents/confirm-typed', payload);
+    const res = await client.post('/data-ops/platform-topics/' + topicId + '/contents/confirm', {
+      contentTitle: payload.contentTitle,
+      contentSummary: payload.contentSummary,
+      contentDate: payload.contentDate
+    });
     return unwrapResponse<DataOpsContent>(res.data);
   },
   async uploadScreenshots(contentId: number | string, files: File[], assetGroup?: DataOpsAssetGroup) {
     const form = new FormData();
     files.forEach(file => form.append('files', file));
-    if (assetGroup) form.append('assetGroup', assetGroup);
-    const path = assetGroup ? '/data-ops/contents/' + contentId + '/screenshots/grouped' : '/data-ops/contents/' + contentId + '/screenshots';
-    const res = await client.post(path, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
+    const res = await client.post('/data-ops/contents/' + contentId + '/screenshots', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
     return unwrapResponse<DataOpsContent>(res.data);
   },
   async recognizeAsset(assetId: number | string, params?: { platform?: PlatformCode; scene?: string }) {
