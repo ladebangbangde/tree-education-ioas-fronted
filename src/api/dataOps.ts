@@ -160,6 +160,25 @@ export interface DataOpsCurrentTopicGenerateResponse {
   package?: DataOpsPackage;
 }
 
+function normalizeAssetGroup(asset: DataOpsAsset): DataOpsAsset {
+  if (asset.asset_group || asset.assetGroup) return asset;
+  const marker = `${asset.object_key || asset.objectKey || asset.public_url || asset.publicUrl || asset.url || ''}`.toLowerCase();
+  let group: DataOpsAssetGroup | undefined;
+  if (marker.includes('douyin_flow_analysis')) group = 'DOUYIN_FLOW_ANALYSIS';
+  else if (marker.includes('douyin_overview_chart')) group = 'DOUYIN_OVERVIEW_CHART';
+  else if (marker.includes('douyin_overview')) group = 'DOUYIN_OVERVIEW';
+  if (!group) return asset;
+  return { ...asset, asset_group: group, assetGroup: group };
+}
+
+function normalizePackage(pkg: DataOpsPackage): DataOpsPackage {
+  if (!pkg?.assets?.length) return pkg;
+  return {
+    ...pkg,
+    assets: pkg.assets.map(normalizeAssetGroup)
+  };
+}
+
 export const dataOpsApi = {
   async userOptions(role: DataOpsUserRole) {
     const res = await client.get('/data-ops/users', { params: { role } });
@@ -171,11 +190,11 @@ export const dataOpsApi = {
   },
   async createPackage(payload: { topicDate?: string; operatorUserIds: number[]; mediaUserIds: number[] }) {
     const res = await client.post('/data-ops/packages', payload);
-    return unwrapResponse<DataOpsPackage>(res.data);
+    return normalizePackage(unwrapResponse<DataOpsPackage>(res.data));
   },
   async packageDetail(id: number | string) {
     const res = await client.get('/data-ops/packages/' + id);
-    return unwrapResponse<DataOpsPackage>(res.data);
+    return normalizePackage(unwrapResponse<DataOpsPackage>(res.data));
   },
   async createPlatformTopic(packageId: number | string, payload: { platformCode: PlatformCode; subTopicName?: string; contentType?: DataOpsContentType }) {
     const res = await client.post('/data-ops/packages/' + packageId + '/platform-topics', {
@@ -209,7 +228,12 @@ export const dataOpsApi = {
     files.forEach(file => form.append('files', file));
     if (assetGroup) form.append('assetGroup', assetGroup);
     const res = await client.post('/data-ops/contents/' + contentId + '/screenshots', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
-    return unwrapResponse<DataOpsContent>(res.data);
+    const content = unwrapResponse<DataOpsContent>(res.data);
+    if (!content.assets?.length || !assetGroup) return content;
+    return {
+      ...content,
+      assets: content.assets.map(asset => ({ ...asset, asset_group: assetGroup, assetGroup }))
+    };
   },
   async recognizeAsset(assetId: number | string, params?: { platform?: PlatformCode; scene?: string }) {
     const res = await client.post('/data-ops/assets/' + assetId + '/recognize', null, { params, timeout: 0 });
@@ -217,7 +241,8 @@ export const dataOpsApi = {
   },
   async generateCurrentTopicData(topicId: number | string) {
     const res = await client.post('/data-ops/platform-topics/' + topicId + '/generate-current-data', null, { timeout: 0 });
-    return unwrapResponse<DataOpsCurrentTopicGenerateResponse>(res.data);
+    const result = unwrapResponse<DataOpsCurrentTopicGenerateResponse>(res.data);
+    return result.package ? { ...result, package: normalizePackage(result.package) } : result;
   },
   async recognizeUploadedImage(file: File, params: { platform: PlatformCode; scene: string }) {
     const form = new FormData();
