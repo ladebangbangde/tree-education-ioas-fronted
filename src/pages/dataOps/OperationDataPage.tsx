@@ -1,5 +1,5 @@
-import { Button, Card, Col, Empty, Form, Image, Input, Modal, Row, Select, Space, Statistic, Table, Tabs, Tag, Tree, Upload, message } from 'antd';
-import { CalendarOutlined, CloudUploadOutlined, FolderOpenOutlined, PlusOutlined, ScanOutlined } from '@ant-design/icons';
+import { Button, Card, Checkbox, Col, Empty, Form, Image, Input, Modal, Popconfirm, Row, Select, Space, Statistic, Table, Tabs, Tag, Tree, Upload, message } from 'antd';
+import { CalendarOutlined, CloudUploadOutlined, DeleteOutlined, FolderOpenOutlined, PlusOutlined, ScanOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '@/components';
@@ -214,6 +214,8 @@ export default function OperationDataPage() {
   const [packageSubmitting, setPackageSubmitting] = useState(false);
   const [topicSubmitting, setTopicSubmitting] = useState(false);
   const [contentSubmitting, setContentSubmitting] = useState(false);
+  const [assetDeleting, setAssetDeleting] = useState(false);
+  const [selectedAssetIds, setSelectedAssetIds] = useState<Set<number>>(new Set());
   const [coverUploadingIds, setCoverUploadingIds] = useState<Set<number>>(new Set());
   const [recognizingTopicIds, setRecognizingTopicIds] = useState<Set<number>>(new Set());
   const [generatingTopicIds, setGeneratingTopicIds] = useState<Set<number>>(new Set());
@@ -306,6 +308,10 @@ export default function OperationDataPage() {
   );
 
   useEffect(() => {
+    setSelectedAssetIds(prev => new Set([...prev].filter(id => selectedTopicAssets.some(asset => Number(asset.id) === id))));
+  }, [selectedTopicAssets]);
+
+  useEffect(() => {
     if (!selectedPlatformTopics.length) {
       setSelectedTopicId(undefined);
       return;
@@ -346,6 +352,35 @@ export default function OperationDataPage() {
   const selectedTreeKeys = selectedPackage ? [`platform-${selectedPackage.id}-${selectedPlatform}`] : [];
   const failedCount = failedAssets.length;
   const uploadedImageCount = selectedTopicAssets.length;
+
+  const toggleAssetSelected = (assetId: number, checked: boolean) => {
+    setSelectedAssetIds(prev => {
+      const next = new Set(prev);
+      if (checked) next.add(assetId);
+      else next.delete(assetId);
+      return next;
+    });
+  };
+
+  const deleteAssetIds = async (assetIds: number[]) => {
+    if (!assetIds.length || assetDeleting) return;
+    setAssetDeleting(true);
+    try {
+      if (assetIds.length === 1) await dataOpsApi.deleteAsset(assetIds[0]);
+      else await dataOpsApi.batchDeleteAssets(assetIds);
+      message.success(`已永久删除 ${assetIds.length} 张图片`);
+      setSelectedAssetIds(prev => {
+        const next = new Set(prev);
+        assetIds.forEach(id => next.delete(id));
+        return next;
+      });
+      await refreshPackageDetail();
+    } finally {
+      setAssetDeleting(false);
+    }
+  };
+
+  const deleteSelectedAssets = async () => deleteAssetIds([...selectedAssetIds]);
 
   const createPackage = async () => {
     if (packageSubmitting) return;
@@ -509,7 +544,13 @@ export default function OperationDataPage() {
     const url = toPreviewUrl(assetUrl(asset));
     const status = assetStatus(asset);
     const info = assetRecognitionInfo(asset);
-    const card = <Card size='small' title={label} extra={<Tag color={statusColor(status)}>{status}</Tag>}>
+    const assetId = Number(asset.id);
+    const selected = selectedAssetIds.has(assetId);
+    const card = <Card
+      size='small'
+      title={<Space><Checkbox checked={selected} onChange={event => toggleAssetSelected(assetId, event.target.checked)} />{label}</Space>}
+      extra={<Space><Tag color={statusColor(status)}>{status}</Tag><Popconfirm title='永久删除这张图片？' description='会同时删除数据库记录和MinIO文件，不可恢复。' okText='删除' cancelText='取消' okButtonProps={{ danger: true, loading: assetDeleting }} onConfirm={() => deleteAssetIds([assetId])}><Button size='small' danger type='text' icon={<DeleteOutlined />} /></Popconfirm></Space>}
+    >
       {url ? <Image src={url} alt={assetFileName(asset)} width='100%' height={120} style={{ objectFit: 'cover', borderRadius: 6 }} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description='无预览' />}
       <div style={{ marginTop: 8, fontWeight: 600, wordBreak: 'break-all' }}>{assetFileName(asset)}</div>
       {info.primary && info.primary !== '-' ? <div style={{ marginTop: 6, color: '#1677ff', fontSize: 12, wordBreak: 'break-all' }}>识别结果：{info.primary}</div> : null}
@@ -522,7 +563,16 @@ export default function OperationDataPage() {
 
   const renderAssetGroupPanel = (group: typeof douyinAssetGroups[number]) => {
     const groupedAssets = screenshotAssets.filter(asset => assetGroup(asset) === group.key);
-    return <Card key={group.key} size='small' title={group.title} extra={<Tag color={groupedAssets.some(item => assetStatus(item) === 'failed') ? 'red' : 'blue'}>{groupedAssets.length} 张</Tag>}>
+    const groupIds = groupedAssets.map(asset => Number(asset.id));
+    const checkedCount = groupIds.filter(id => selectedAssetIds.has(id)).length;
+    const allChecked = groupIds.length > 0 && checkedCount === groupIds.length;
+    const someChecked = checkedCount > 0 && checkedCount < groupIds.length;
+    return <Card
+      key={group.key}
+      size='small'
+      title={<Space><Checkbox checked={allChecked} indeterminate={someChecked} disabled={!groupIds.length} onChange={event => groupIds.forEach(id => toggleAssetSelected(id, event.target.checked))} />{group.title}</Space>}
+      extra={<Space><Tag color={groupedAssets.some(item => assetStatus(item) === 'failed') ? 'red' : 'blue'}>{groupedAssets.length} 张</Tag>{checkedCount ? <Popconfirm title={`永久删除选中的 ${checkedCount} 张图片？`} description='会同时删除数据库记录和MinIO文件，不可恢复。' okText='删除' cancelText='取消' okButtonProps={{ danger: true, loading: assetDeleting }} onConfirm={() => deleteAssetIds(groupIds.filter(id => selectedAssetIds.has(id)))}><Button size='small' danger icon={<DeleteOutlined />}>删除选中</Button></Popconfirm> : null}</Space>}
+    >
       <div style={{ marginBottom: 12, opacity: 0.65 }}>{group.desc}</div>
       <Upload
         multiple
@@ -655,7 +705,7 @@ export default function OperationDataPage() {
                   { title: '状态', width: 110, render: (_: any, r: any) => <Tag color={statusColor(pick(r, 'recognition_status', 'recognitionStatus') || r.status)}>{pick(r, 'recognition_status', 'recognitionStatus') || r.status || 'draft'}</Tag> }
                 ]} /> : <Empty description={selectedTopic ? '当前子主题还没有确认主题内容' : '请选择一个子主题'} />}
               </Card>
-              <Card type='inner' title='图片预览与识别状态' className='mt12'>
+              <Card type='inner' title='图片预览与识别状态' className='mt12' extra={selectedAssetIds.size ? <Popconfirm title={`永久删除选中的 ${selectedAssetIds.size} 张图片？`} description='会同时删除数据库记录和MinIO文件，不可恢复。' okText='删除' cancelText='取消' okButtonProps={{ danger: true, loading: assetDeleting }} onConfirm={deleteSelectedAssets}><Button danger icon={<DeleteOutlined />} loading={assetDeleting}>批量删除选中图片</Button></Popconfirm> : null}>
                 {selectedTopic ? <>
                   <Row gutter={[16,16]}>
                     <Col xs={24} lg={8}>
