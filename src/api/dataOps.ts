@@ -21,6 +21,10 @@ export interface DataOpsAsset {
   packageId?: number;
   platform_topic_id?: number;
   platformTopicId?: number;
+  account_id?: number;
+  accountId?: number;
+  video_id?: number;
+  videoId?: number;
   content_id?: number;
   contentId?: number;
   asset_type?: string;
@@ -66,6 +70,11 @@ export interface DataOpsAsset {
 export interface DataOpsMetricRow {
   id: number;
   platformTopicId: number;
+  accountId?: number | null;
+  accountName?: string | null;
+  platformUserId?: string | null;
+  videoId?: number | null;
+  videoTitle?: string | null;
   contentId?: number;
   assetId?: number;
   platformCode: PlatformCode;
@@ -160,6 +169,10 @@ export interface DataOpsContent {
   packageId?: number;
   platform_topic_id?: number;
   platformTopicId?: number;
+  account_id?: number;
+  accountId?: number;
+  video_id?: number;
+  videoId?: number;
   platform_code?: PlatformCode;
   platformCode?: PlatformCode;
   content_type?: DataOpsContentType;
