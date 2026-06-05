@@ -63,6 +63,43 @@ export interface DataOpsAsset {
   parsedResultJson?: string;
 }
 
+export interface DataOpsMetricRow {
+  id: number;
+  platformTopicId: number;
+  contentId?: number;
+  assetId?: number;
+  platformCode: PlatformCode;
+  contentType: DataOpsContentType;
+  metricGroup: 'OVERVIEW' | 'OVERVIEW_CHART' | 'FLOW_ANALYSIS';
+  metricKey: string;
+  metricLabel: string;
+  metricValue?: string | null;
+  metricNumeric?: number | null;
+  metricUnit?: string | null;
+  recognitionStatus: 'PENDING' | 'SUCCESS' | 'FAILED' | string;
+  confidence?: number | null;
+  source?: string | null;
+  failReason?: string | null;
+  recognizedAt?: string | null;
+  displayOrder?: number | null;
+}
+
+export interface DataOpsTopicRecognitionStatus {
+  status: string;
+  label: string;
+  color: string;
+  total?: number;
+  success?: number;
+  failed?: number;
+  missing?: number;
+}
+
+export interface DataOpsTopicMetricsResponse {
+  topicId: number;
+  status: DataOpsTopicRecognitionStatus;
+  rows: DataOpsMetricRow[];
+}
+
 export interface DataOpsPackage {
   id: number;
   package_no?: string;
@@ -105,6 +142,10 @@ export interface DataOpsPlatformTopic {
   ocrTitle?: string;
   ocr_account_name?: string;
   ocrAccountName?: string;
+  ocr_platform_user_id?: string;
+  ocrPlatformUserId?: string;
+  ocr_content_title?: string;
+  ocrContentTitle?: string;
   ocr_payload_json?: string;
   ocrPayloadJson?: string;
   status?: string;
@@ -215,6 +256,14 @@ export const dataOpsApi = {
   async platformTopics(packageId: number | string) {
     const res = await client.get('/data-ops/packages/' + packageId + '/platform-topics');
     return unwrapResponse<DataOpsPlatformTopic[]>(res.data);
+  },
+  async topicMetrics(topicId: number | string) {
+    const res = await client.get('/data-ops/platform-topics/' + topicId + '/metrics');
+    return unwrapResponse<DataOpsTopicMetricsResponse>(res.data);
+  },
+  async topicRecognitionStatus(topicId: number | string) {
+    const res = await client.get('/data-ops/platform-topics/' + topicId + '/recognition-status');
+    return unwrapResponse<DataOpsTopicRecognitionStatus>(res.data);
   },
   async uploadCover(topicId: number | string, file: File) {
     const form = new FormData();
