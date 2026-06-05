@@ -109,6 +109,14 @@ export interface DataOpsTopicMetricsResponse {
   rows: DataOpsMetricRow[];
 }
 
+export interface DataOpsAccountConfirmResponse {
+  topicId: number;
+  accountId?: number;
+  accountName: string;
+  platformUserId: string;
+  status: string;
+}
+
 export interface DataOpsPackage {
   id: number;
   package_no?: string;
@@ -277,6 +285,10 @@ export const dataOpsApi = {
   async topicRecognitionStatus(topicId: number | string) {
     const res = await client.get('/data-ops/platform-topics/' + topicId + '/recognition-status');
     return unwrapResponse<DataOpsTopicRecognitionStatus>(res.data);
+  },
+  async confirmAccount(topicId: number | string, payload: { accountName: string; platformUserId: string }) {
+    const res = await client.post('/data-ops/platform-topics/' + topicId + '/account/confirm', payload);
+    return unwrapResponse<DataOpsAccountConfirmResponse>(res.data);
   },
   async uploadCover(topicId: number | string, file: File) {
     const form = new FormData();
