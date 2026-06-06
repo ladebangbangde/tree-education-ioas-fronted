@@ -2,6 +2,7 @@ import {
   BarChartOutlined,
   DashboardOutlined,
   DatabaseOutlined,
+  FileSearchOutlined,
   FileTextOutlined,
   FolderOpenOutlined,
   ReadOutlined,
@@ -24,7 +25,8 @@ export const menuConfig: AppMenuItem[] = [
     icon: <DatabaseOutlined />,
     roles: ['DATA'],
     children: [
-      { key: 'operation-data', label: '运营数据', path: '/data-ops/operation-data' }
+      { key: 'operation-data', label: '运营数据', path: '/data-ops/operation-data' },
+      { key: 'recognition-review', label: 'AI识别校验', path: '/data-ops/recognition-review', icon: <FileSearchOutlined /> }
     ]
   },
   { key: 'dashboard', label: '工作台', path: '/dashboard', icon: <DashboardOutlined />, roles: ['CONSULTANT', 'ADMINISTRATIVE'] },
