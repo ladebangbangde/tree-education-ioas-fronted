@@ -112,13 +112,23 @@ export interface RecognizeAndSaveResponse {
   recognition: RecognitionResponse;
 }
 
+function buildRecognitionForm(file: File, params: { platform: RecognitionPlatform; scene?: string; contentType?: RecognitionContentType }) {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('platform', params.platform || 'UNKNOWN');
+  form.append('scene', params.scene || 'CONTENT_DETAIL');
+  form.append('contentType', params.contentType || 'AUTO');
+  return form;
+}
+
 export const dataRecognitionApi = {
+  async recognize(file: File, params: { platform: RecognitionPlatform; scene?: string; contentType?: RecognitionContentType }) {
+    const form = buildRecognitionForm(file, params);
+    const res = await client.post('/data-recognition/screenshots/recognize', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
+    return unwrapResponse<RecognitionResponse>(res.data);
+  },
   async recognizeAndSave(file: File, params: { platform: RecognitionPlatform; scene?: string; contentType?: RecognitionContentType }) {
-    const form = new FormData();
-    form.append('file', file);
-    form.append('platform', params.platform || 'UNKNOWN');
-    form.append('scene', params.scene || 'CONTENT_DETAIL');
-    form.append('contentType', params.contentType || 'AUTO');
+    const form = buildRecognitionForm(file, params);
     const res = await client.post('/data-recognition/screenshots/recognize-and-save', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
     return unwrapResponse<RecognizeAndSaveResponse>(res.data);
   },
