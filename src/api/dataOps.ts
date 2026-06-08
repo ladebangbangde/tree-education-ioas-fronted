@@ -301,7 +301,7 @@ export const dataOpsApi = {
     return unwrapResponse<DataOpsPlatformTopic>(res.data);
   },
   async confirmContent(topicId: number | string, payload: { contentTitle?: string; contentSummary?: string; contentDate?: string; contentType?: DataOpsContentType }) {
-    const res = await client.post('/data-ops/platform-topics/' + topicId + '/contents/confirm', {
+    const res = await client.post('/data-ops/platform-topics/' + topicId + '/contents/confirm-current', {
       contentTitle: payload.contentTitle,
       contentSummary: payload.contentSummary,
       contentDate: payload.contentDate,
