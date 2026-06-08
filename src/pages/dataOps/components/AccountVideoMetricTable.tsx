@@ -42,6 +42,13 @@ function isBetterMetricRow(next: DataOpsMetricRow, current?: DataOpsMetricRow) {
   return Number(next.id || 0) > Number(current.id || 0);
 }
 
+function betterTitle(current: string | undefined, next?: string | null) {
+  const text = String(next || '').trim();
+  if (!text || text.toLowerCase() === 'null') return current || '当前已确认内容';
+  if (!current || current === '当前已确认内容' || current === '未归属内容') return text;
+  return current;
+}
+
 function buildGroups(rows: DataOpsMetricRow[], confirmedContentType?: DataOpsContentType, confirmedTitle?: string) {
   const accounts = new Map<string, any>();
   rows.forEach(row => {
@@ -55,21 +62,21 @@ function buildGroups(rows: DataOpsMetricRow[], confirmedContentType?: DataOpsCon
       });
     }
     const account = accounts.get(accountKey);
-    const effectiveType = confirmedContentType || row.contentType || 'VIDEO';
-    const contentKey = String(row.contentId || `${effectiveType}-confirmed-content`);
+
+    const contentKey = 'current-confirmed-content';
     if (!account.contents.has(contentKey)) {
       account.contents.set(contentKey, {
         key: contentKey,
         contentId: row.contentId,
-        contentType: effectiveType,
+        contentType: confirmedContentType || row.contentType || 'VIDEO',
         title: confirmedTitle || row.videoTitle || '当前已确认内容',
         pages: new Map<string, any>()
       });
     }
     const content = account.contents.get(contentKey);
-    content.contentType = confirmedContentType || content.contentType || row.contentType || 'VIDEO';
-    if (confirmedTitle) content.title = confirmedTitle;
-    else if (!content.title || content.title === '当前已确认内容') content.title = row.videoTitle || content.title;
+    content.contentId = content.contentId || row.contentId;
+    content.contentType = confirmedContentType || (row.contentType === 'VIDEO' ? 'VIDEO' : content.contentType || row.contentType || 'VIDEO');
+    content.title = confirmedTitle || betterTitle(content.title, row.videoTitle);
 
     const pageKey = row.metricGroup || 'OVERVIEW';
     if (!content.pages.has(pageKey)) {
@@ -114,7 +121,7 @@ export function AccountVideoMetricTable({
   if (!loading && !accounts.length) return <Empty description="当前主题还没有识别出账号/内容数据，上传数据页1后会自动生成数据表" />;
   return <Space direction="vertical" size={16} style={{ width: '100%' }}>
     {accounts.map(account => <Card key={account.key} type="inner" title={<Space><span>账号：{account.accountName}</span><Tag>账号ID：{account.platformUserId}</Tag></Space>}>
-      {account.contents.map((content: any) => <Card key={content.key} size="small" style={{ marginBottom: 12 }} title={<Space><span>{contentTypeLabel[content.contentType] || content.contentType || '内容'}：{content.title}</span><Tag color="blue">#{content.contentId || content.key}</Tag></Space>}>
+      {account.contents.map((content: any) => <Card key={content.key} size="small" style={{ marginBottom: 12 }} title={<Space><span>{contentTypeLabel[content.contentType] || content.contentType || '内容'}：{content.title}</span><Tag color="blue">#{content.contentId || '当前作品'}</Tag></Space>}>
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
           {content.pages.map((page: any) => <Card key={page.key} size="small" title={<Space><span>{page.label}</span><Tag color="blue">来源图片 #{page.assetId || '-'}</Tag></Space>}>
             <Table<DataOpsMetricRow>
