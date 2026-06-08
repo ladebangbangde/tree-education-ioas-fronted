@@ -262,6 +262,10 @@ export const dataOpsApi = {
     const res = await client.post('/data-ops/packages', payload);
     return normalizePackage(unwrapResponse<DataOpsPackage>(res.data));
   },
+  async deletePackage(packageId: number | string) {
+    const res = await client.delete('/data-ops/packages/' + packageId);
+    return unwrapResponse<any>(res.data);
+  },
   async packageDetail(id: number | string) {
     const res = await client.get('/data-ops/packages/' + id);
     return normalizePackage(unwrapResponse<DataOpsPackage>(res.data));
@@ -326,7 +330,7 @@ export const dataOpsApi = {
     return unwrapResponse<any>(res.data);
   },
   async recognizeAsset(assetId: number | string, params?: { platform?: PlatformCode; scene?: string }) {
-    const res = await client.post('/data-ops/assets/' + assetId + '/recognize', null, { params, timeout: 0 });
+    const res = await client.post('/data-ops/assets/' + assetId + '/recognize-current', null, { params, timeout: 0 });
     return unwrapResponse<DataOpsRecognitionResponse>(res.data);
   },
   async generateCurrentTopicData(topicId: number | string) {
