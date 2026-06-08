@@ -1,5 +1,5 @@
 import { Card, Empty, Space, Table, Tag } from 'antd';
-import type { DataOpsMetricRow } from '@/api/dataOps';
+import type { DataOpsContentType, DataOpsMetricRow } from '@/api/dataOps';
 
 const groupLabel: Record<string, string> = {
   OVERVIEW: '数据页1 · 总览指标',
@@ -11,6 +11,11 @@ const groupOrder: Record<string, number> = {
   OVERVIEW: 1,
   OVERVIEW_CHART: 2,
   FLOW_ANALYSIS: 3
+};
+
+const contentTypeLabel: Record<string, string> = {
+  IMAGE_TEXT: '图文',
+  VIDEO: '视频'
 };
 
 function statusColor(status?: string) {
@@ -37,7 +42,7 @@ function isBetterMetricRow(next: DataOpsMetricRow, current?: DataOpsMetricRow) {
   return Number(next.id || 0) > Number(current.id || 0);
 }
 
-function buildGroups(rows: DataOpsMetricRow[]) {
+function buildGroups(rows: DataOpsMetricRow[], confirmedContentType?: DataOpsContentType, confirmedTitle?: string) {
   const accounts = new Map<string, any>();
   rows.forEach(row => {
     const accountKey = String(row.accountId || row.accountName || row.platformUserId || 'unknown-account');
@@ -46,31 +51,36 @@ function buildGroups(rows: DataOpsMetricRow[]) {
         key: accountKey,
         accountName: row.accountName || '未归属账号',
         platformUserId: row.platformUserId || '-',
-        videos: new Map<string, any>()
+        contents: new Map<string, any>()
       });
     }
     const account = accounts.get(accountKey);
-    const videoKey = String(row.videoId || row.videoTitle || row.contentId || `${row.contentType}-content` || 'unknown-video');
-    if (!account.videos.has(videoKey)) {
-      account.videos.set(videoKey, {
-        key: videoKey,
-        videoId: row.videoId,
-        videoTitle: row.videoTitle || '未归属内容',
-        contentType: row.contentType,
+    const effectiveType = confirmedContentType || row.contentType || 'VIDEO';
+    const contentKey = String(row.contentId || `${effectiveType}-confirmed-content`);
+    if (!account.contents.has(contentKey)) {
+      account.contents.set(contentKey, {
+        key: contentKey,
+        contentId: row.contentId,
+        contentType: effectiveType,
+        title: confirmedTitle || row.videoTitle || '当前已确认内容',
         pages: new Map<string, any>()
       });
     }
-    const video = account.videos.get(videoKey);
+    const content = account.contents.get(contentKey);
+    content.contentType = confirmedContentType || content.contentType || row.contentType || 'VIDEO';
+    if (confirmedTitle) content.title = confirmedTitle;
+    else if (!content.title || content.title === '当前已确认内容') content.title = row.videoTitle || content.title;
+
     const pageKey = row.metricGroup || 'OVERVIEW';
-    if (!video.pages.has(pageKey)) {
-      video.pages.set(pageKey, {
+    if (!content.pages.has(pageKey)) {
+      content.pages.set(pageKey, {
         key: pageKey,
         label: groupLabel[pageKey] || pageKey,
         assetId: row.assetId,
         rowsByMetric: new Map<string, DataOpsMetricRow>()
       });
     }
-    const page = video.pages.get(pageKey);
+    const page = content.pages.get(pageKey);
     const metricKey = row.metricKey || row.metricLabel;
     const current = page.rowsByMetric.get(metricKey);
     if (isBetterMetricRow(row, current)) {
@@ -80,23 +90,33 @@ function buildGroups(rows: DataOpsMetricRow[]) {
   });
   return Array.from(accounts.values()).map(account => ({
     ...account,
-    videos: Array.from(account.videos.values()).map((video: any) => ({
-      ...video,
-      pages: Array.from(video.pages.values())
+    contents: Array.from(account.contents.values()).map((content: any) => ({
+      ...content,
+      pages: Array.from(content.pages.values())
         .map((page: any) => ({ ...page, rows: Array.from(page.rowsByMetric.values()).sort((a: DataOpsMetricRow, b: DataOpsMetricRow) => Number(a.displayOrder || 0) - Number(b.displayOrder || 0)) }))
         .sort((a: any, b: any) => (groupOrder[a.key] || 99) - (groupOrder[b.key] || 99))
     }))
   }));
 }
 
-export function AccountVideoMetricTable({ rows, loading }: { rows: DataOpsMetricRow[]; loading?: boolean }) {
-  const accounts = buildGroups(rows || []);
-  if (!loading && !accounts.length) return <Empty description="当前主题还没有识别出账号/视频数据，上传数据页1后会自动生成视频" />;
+export function AccountVideoMetricTable({
+  rows,
+  loading,
+  contentType,
+  contentTitle
+}: {
+  rows: DataOpsMetricRow[];
+  loading?: boolean;
+  contentType?: DataOpsContentType;
+  contentTitle?: string;
+}) {
+  const accounts = buildGroups(rows || [], contentType, contentTitle);
+  if (!loading && !accounts.length) return <Empty description="当前主题还没有识别出账号/内容数据，上传数据页1后会自动生成数据表" />;
   return <Space direction="vertical" size={16} style={{ width: '100%' }}>
     {accounts.map(account => <Card key={account.key} type="inner" title={<Space><span>账号：{account.accountName}</span><Tag>账号ID：{account.platformUserId}</Tag></Space>}>
-      {account.videos.map((video: any) => <Card key={video.key} size="small" style={{ marginBottom: 12 }} title={<Space><span>{video.contentType === 'IMAGE_TEXT' ? '图文' : '视频'}：{video.videoTitle}</span><Tag color="blue">#{video.videoId || video.key}</Tag></Space>}>
+      {account.contents.map((content: any) => <Card key={content.key} size="small" style={{ marginBottom: 12 }} title={<Space><span>{contentTypeLabel[content.contentType] || content.contentType || '内容'}：{content.title}</span><Tag color="blue">#{content.contentId || content.key}</Tag></Space>}>
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
-          {video.pages.map((page: any) => <Card key={page.key} size="small" title={<Space><span>{page.label}</span><Tag color="blue">来源图片 #{page.assetId || '-'}</Tag></Space>}>
+          {content.pages.map((page: any) => <Card key={page.key} size="small" title={<Space><span>{page.label}</span><Tag color="blue">来源图片 #{page.assetId || '-'}</Tag></Space>}>
             <Table<DataOpsMetricRow>
               loading={loading}
               size="small"
