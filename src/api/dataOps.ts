@@ -1,7 +1,7 @@
 import client, { unwrapResponse } from './client';
 
 export type PlatformCode = 'DOUYIN' | 'XIAOHONGSHU' | 'WECHAT_CHANNEL';
-export type DataOpsUserRole = 'MEDIA' | 'OPERATOR' | 'DATA' | 'ADMINISTRATIVE' | 'CONSULTANT';
+export type DataOpsUserRole = 'MEDIA' | 'OPERATOR' | 'DATA' | 'ADMINISTRATIVE' | 'CONSULTANT' | 'ANCHOR';
 export type DataOpsContentType = 'IMAGE_TEXT' | 'VIDEO';
 export type DataOpsAssetGroup = 'DOUYIN_OVERVIEW' | 'DOUYIN_OVERVIEW_CHART' | 'DOUYIN_FLOW_ANALYSIS';
 
@@ -131,6 +131,10 @@ export interface DataOpsPackage {
   operatorNames?: string;
   media_names?: string;
   mediaNames?: string;
+  anchor_user_ids?: string;
+  anchorUserIds?: string;
+  anchor_names?: string;
+  anchorNames?: string;
   status?: string;
   report_status?: string;
   reportStatus?: string;
@@ -254,6 +258,10 @@ export const dataOpsApi = {
     const res = await client.get('/data-ops/users', { params: { role } });
     return unwrapResponse<DataOpsUserOption[]>(res.data);
   },
+  async anchorUsers() {
+    const res = await client.get('/data-ops/anchor-users');
+    return unwrapResponse<DataOpsUserOption[]>(res.data);
+  },
   async packages(params?: { date?: string }) {
     const res = await client.get('/data-ops/packages', { params });
     return unwrapResponse<DataOpsPackage[]>(res.data);
@@ -261,6 +269,10 @@ export const dataOpsApi = {
   async createPackage(payload: { topicDate?: string; operatorUserIds: number[]; mediaUserIds: number[] }) {
     const res = await client.post('/data-ops/packages', payload);
     return normalizePackage(unwrapResponse<DataOpsPackage>(res.data));
+  },
+  async setPackageAnchors(packageId: number | string, anchorUserIds: number[]) {
+    const res = await client.post('/data-ops/packages/' + packageId + '/anchors', { anchorUserIds });
+    return unwrapResponse<DataOpsPackage>(res.data);
   },
   async deletePackage(packageId: number | string) {
     const res = await client.delete('/data-ops/packages/' + packageId);
