@@ -85,3 +85,39 @@ export const canUseButton = (role: Role, action: string) => {
   const allowed = roleButtonMatrix[role] || [];
   return allowed.includes('*') || allowed.includes(action);
 };
+export const canAccessRoute = (routePath: string, role: Role): boolean => {
+  if (!routePath) return true;
+
+  if (role === 'admin' || role === 'super_admin') {
+    return true;
+  }
+
+  const roleRouteMap: Record<string, string[]> = {
+    manager: [
+      '/dashboard',
+      '/leads',
+      '/cms',
+      '/consultants',
+      '/media',
+      '/site-config',
+      '/audit',
+    ],
+    operator: [
+      '/dashboard',
+      '/leads',
+      '/cms',
+      '/media',
+    ],
+    consultant: [
+      '/dashboard',
+      '/leads',
+      '/consultants',
+    ],
+  };
+
+  const allowedRoutes = roleRouteMap[String(role)] || [];
+
+  return allowedRoutes.some((path) => {
+    return routePath === path || routePath.startsWith(`${path}/`);
+  });
+};
