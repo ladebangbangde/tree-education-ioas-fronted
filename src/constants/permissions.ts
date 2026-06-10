@@ -1,11 +1,20 @@
-export const roles = [];
+import type { Role } from '@/types';
 
-export const roleLabels = {};
+export const roles: Role[] = [
+  'SUPER_ADMIN',
+  'MEDIA',
+  'OPERATOR',
+  'CONSULTANT',
+  'DATA',
+  'ADMINISTRATIVE',
+  'ANCHOR',
+];
 
-export type ButtonAction = string;
-
-export const canAccessRoute = (): boolean => true;
-
-export const canUseButton = (): boolean => true;
-
-export const getDefaultRoute = (): string => '/';
+export const roleLabels: Record<Role, string> = {
+  SUPER_ADMIN: 'Super Admin',
+  MEDIA: 'Media',
+  OPERATOR: 'Operator',
+  CONSULTANT: 'Consultant',
+  DATA: 'Data Operator',
+  ADMINISTRATIVE: 'Administrative',
+  ANCHOR
