@@ -17,4 +17,10 @@ export const defaultRouteByRole: Record<Role, string> = {
   SUPER_ADMIN: '/settings/users',
   MEDIA: '/media/content',
   OPERATOR: '/operator/leads',
-  CONSULTANT
+  CONSULTANT: '/students/list',
+  DATA: '/data-ops/operation-data',
+  ANCHOR: '/data-ops/operation-data',
+  ADMINISTRATIVE: '/dashboard'
+};
+
+export const getDefaultRoute = (role: Role) => defaultRouteByRole[role
