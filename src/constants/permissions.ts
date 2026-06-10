@@ -1,24 +1,5 @@
-import type { Role } from '@/types';
+export const roles = [];
 
-export const roles: Role[] = [
-  'SUPER_ADMIN',
-  'MEDIA',
-  'OPERATOR',
-  'CONSULTANT',
-  'DATA',
-  'ANCHOR',
-  'ADMINISTRATIVE',
-];
+export const roleLabels = {};
 
-export const roleLabels: Record<Role, string> = {
-  SUPER_ADMIN: 'Super Admin',
-  MEDIA: 'Media',
-  OPERATOR: 'Operator',
-  CONSULTANT: 'Consultant',
-  DATA: 'Data',
-  ANCHOR: 'Anchor',
-  ADMINISTRATIVE: 'Administrative',
-};
-
-const normalizeRole = (role?: Role | string | null): Role | undefined => {
-  if (!role) return undefined;
+export const canAccessRoute = (): boolean => true;
