@@ -1,7 +1,4 @@
-import { Button, Card, Empty, Input, Modal, Space, Table, Tag, Tooltip, message } from 'antd';
-import { DownloadOutlined, EditOutlined } from '@ant-design/icons';
-import { useState } from 'react';
-import client, { API_BASE_URL } from '@/api/client';
+import { Card, Empty, Space, Table, Tag } from 'antd';
 import type { DataOpsContentType, DataOpsMetricRow } from '@/api/dataOps';
 
 const groupLabel: Record<string, string> = {
@@ -27,13 +24,6 @@ function statusColor(status?: string) {
   if (value === 'FAILED') return 'red';
   if (value === 'PENDING') return 'gold';
   return 'default';
-}
-
-function todayText() {
-  const d = new Date();
-  const month = `${d.getMonth() + 1}`.padStart(2, '0');
-  const day = `${d.getDate()}`.padStart(2, '0');
-  return `${d.getFullYear()}-${month}-${day}`;
 }
 
 function rowTime(row: DataOpsMetricRow) {
@@ -116,17 +106,6 @@ function buildGroups(rows: DataOpsMetricRow[], confirmedContentType?: DataOpsCon
   }));
 }
 
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
 export function AccountVideoMetricTable({
   rows,
   loading,
@@ -139,74 +118,8 @@ export function AccountVideoMetricTable({
   contentTitle?: string;
 }) {
   const accounts = buildGroups(rows || [], contentType, contentTitle);
-  const [editingId, setEditingId] = useState<number>();
-  const [editingValue, setEditingValue] = useState('');
-  const [savingId, setSavingId] = useState<number>();
-  const [overrides, setOverrides] = useState<Record<number, { value: string; source?: string }>>({});
-  const [exporting, setExporting] = useState(false);
-
-  const currentValue = (row: DataOpsMetricRow) => overrides[row.id]?.value ?? (row.metricValue ?? '');
-  const currentSource = (row: DataOpsMetricRow) => overrides[row.id]?.source || row.source;
-
-  const startEdit = (row: DataOpsMetricRow) => {
-    setEditingId(row.id);
-    setEditingValue(currentValue(row));
-  };
-
-  const saveMetric = async (row: DataOpsMetricRow, confirmed = false) => {
-    const oldValue = String(row.metricValue ?? '');
-    const nextValue = editingValue.trim();
-    const changed = nextValue !== oldValue;
-    if (!nextValue) return message.warning('请填写修改后的数据');
-    if (changed && !confirmed) {
-      Modal.confirm({
-        title: '确认修改这项数据吗？',
-        content: `识别值是「${oldValue || '空'}」，你准备改成「${nextValue}」。确认后会以人工修正值为准，并在导出表中标记。`,
-        okText: '确认修改',
-        cancelText: '再看看',
-        onOk: () => saveMetric(row, true)
-      });
-      return;
-    }
-    setSavingId(row.id);
-    try {
-      await client.patch(`/data-ops/metrics/${row.id}`, { metricValue: nextValue, confirmed: changed });
-      setOverrides(prev => ({ ...prev, [row.id]: { value: nextValue, source: changed ? 'MANUAL' : row.source } }));
-      setEditingId(undefined);
-      message.success(changed ? '已保存人工修正值' : '已保存');
-    } finally {
-      setSavingId(undefined);
-    }
-  };
-
-  const exportDailyExcel = () => {
-    const date = todayText();
-    Modal.confirm({
-      title: '要下载今天的数据 Excel 吗？',
-      content: '系统会把今天所有平台子主题下的内容汇总成 Excel。每个子主题/内容一行，数据页1、2、3的指标会横向展开，方便你发给老板或继续整理。',
-      okText: '下载 Excel',
-      cancelText: '先不下载',
-      onOk: async () => {
-        setExporting(true);
-        try {
-          const res = await client.get('/data-ops/reports/daily/export', { params: { date }, responseType: 'blob', timeout: 0 });
-          downloadBlob(res.data, `运营数据-${date}.xlsx`);
-          message.success('Excel 已开始下载');
-        } finally {
-          setExporting(false);
-        }
-      }
-    });
-  };
-
   if (!loading && !accounts.length) return <Empty description="当前主题还没有识别出账号/内容数据，上传数据页1后会自动生成数据表" />;
   return <Space direction="vertical" size={16} style={{ width: '100%' }}>
-    <Card size="small">
-      <Space wrap>
-        <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportDailyExcel}>下载当日数据 Excel</Button>
-        <span style={{ color: '#8c8c8c' }}>导出前会先确认；人工修正过的值会在 Excel 中标记。</span>
-      </Space>
-    </Card>
     {accounts.map(account => <Card key={account.key} type="inner" title={<Space><span>账号：{account.accountName}</span><Tag>账号ID：{account.platformUserId}</Tag></Space>}>
       {account.contents.map((content: any) => <Card key={content.key} size="small" style={{ marginBottom: 12 }} title={<Space><span>{contentTypeLabel[content.contentType] || content.contentType || '内容'}：{content.title}</span><Tag color="blue">#{content.contentId || '当前作品'}</Tag></Space>}>
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
@@ -219,23 +132,8 @@ export function AccountVideoMetricTable({
               dataSource={page.rows}
               columns={[
                 { title: '数据标签', dataIndex: 'metricLabel', width: 180 },
-                {
-                  title: '识别/修正值',
-                  width: 220,
-                  render: (_, row) => editingId === row.id
-                    ? <Space.Compact style={{ width: '100%' }}>
-                        <Input autoFocus value={editingValue} onChange={event => setEditingValue(event.target.value)} onPressEnter={() => saveMetric(row)} />
-                        <Button type="primary" loading={savingId === row.id} onClick={() => saveMetric(row)}>保存</Button>
-                        <Button onClick={() => setEditingId(undefined)}>取消</Button>
-                      </Space.Compact>
-                    : <Tooltip title="点击这里可以人工修正这项数据">
-                        <Button type="link" style={{ padding: 0 }} onClick={() => startEdit(row)}>
-                          {currentValue(row) || 'null'} <EditOutlined />
-                        </Button>
-                      </Tooltip>
-                },
+                { title: '识别值', width: 160, render: (_, row) => row.metricValue ?? 'null' },
                 { title: '单位', width: 80, render: (_, row) => row.metricUnit || '-' },
-                { title: '来源', width: 100, render: (_, row) => <Tag color={currentSource(row) === 'MANUAL' ? 'purple' : 'blue'}>{currentSource(row) === 'MANUAL' ? '人工修正' : 'OCR'}</Tag> },
                 { title: '状态', width: 100, render: (_, row) => <Tag color={statusColor(row.recognitionStatus)}>{row.recognitionStatus || 'PENDING'}</Tag> },
                 { title: '识别时间', width: 190, render: (_, row) => row.recognizedAt || '-' }
               ]}
