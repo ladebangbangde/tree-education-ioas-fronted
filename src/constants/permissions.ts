@@ -13,4 +13,7 @@ export const roleLabels: Record<Role, string> = {
   ANCHOR: 'Anchor'
 };
 
-export const defaultRouteByRole
+export const defaultRouteByRole: Record<Role, string> = {
+  SUPER_ADMIN: '/settings/users',
+  MEDIA: '/media/content',
+ 
