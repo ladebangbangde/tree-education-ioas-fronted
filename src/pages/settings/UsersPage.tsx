@@ -10,6 +10,7 @@ const defaultOptions = {
     { value: 'MEDIA', label: '媒体' },
     { value: 'OPERATOR', label: '运营' },
     { value: 'DATA', label: '数据操作员' },
+    { value: 'ANCHOR', label: '主播' },
     { value: 'ADMINISTRATIVE', label: '行政' }
   ],
   departments: [

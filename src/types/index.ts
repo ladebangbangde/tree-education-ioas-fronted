@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type Role = 'SUPER_ADMIN' | 'MEDIA' | 'OPERATOR' | 'CONSULTANT' | 'DATA' | 'ADMINISTRATIVE';
+export type Role = 'SUPER_ADMIN' | 'MEDIA' | 'OPERATOR' | 'CONSULTANT' | 'DATA' | 'ADMINISTRATIVE' | 'ANCHOR';
 export type Department = '咨询中心' | '申请交付中心' | '文案部' | '签证部' | '媒体部' | '运营部' | '数据部' | '行政部' | '系统管理部';
 export type DataScope = 'ALL' | 'DEPARTMENT' | 'MINE';
 export interface AppMenuItem { key: string; label: string; path?: string; icon?: ReactNode; children?: AppMenuItem[]; roles?: Role[]; }
