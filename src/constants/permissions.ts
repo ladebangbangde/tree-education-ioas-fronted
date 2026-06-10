@@ -1,4 +1,3 @@
-import { matchPath } from 'react-router-dom';
 import type { Role } from '@/types';
 
 export const roles: Role[] = [
@@ -12,12 +11,14 @@ export const roles: Role[] = [
 ];
 
 export const roleLabels: Record<Role, string> = {
-  SUPER_ADMIN: '超级管理员',
-  MEDIA: '媒体',
-  OPERATOR: '运营',
-  CONSULTANT: '顾问',
-  DATA: '数据',
-  ANCHOR: '主播',
-  ADMINISTRATIVE: '行政',
+  SUPER_ADMIN: 'Super Admin',
+  MEDIA: 'Media',
+  OPERATOR: 'Operator',
+  CONSULTANT: 'Consultant',
+  DATA: 'Data',
+  ANCHOR: 'Anchor',
+  ADMINISTRATIVE: 'Administrative',
 };
 
+const normalizeRole = (role?: Role | string | null): Role | undefined => {
+  if (!role) return undefined;
