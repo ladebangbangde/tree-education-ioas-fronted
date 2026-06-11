@@ -357,5 +357,37 @@ export const dataOpsApi = {
     form.append('scene', params.scene);
     const res = await client.post('/recognition/social-metrics', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
     return unwrapResponse<DataOpsRecognitionResponse>(res.data);
+  },
+  async generateDailyReport(payload: { date?: string }) {
+    const res = await client.post('/data-ops/reports2/export-excel', payload, {
+      responseType: 'blob',
+      timeout: 0
+    });
+    const contentType = String(res.headers['content-type'] || '');
+    const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: contentType || 'application/octet-stream' });
+    if (!contentType.includes('spreadsheetml') && !contentType.includes('application/octet-stream')) {
+      const text = await blob.text();
+      try {
+        const parsed = JSON.parse(text);
+        throw new Error(parsed?.message || parsed?.msg || '导出失败');
+      } catch {
+        throw new Error(text || '导出失败');
+      }
+    }
+    if (!blob.size) throw new Error('导出的文件为空');
+    const disposition = res.headers['content-disposition'] || '';
+    const match = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^"]+)"?/);
+    const fileName = decodeURIComponent(match?.[1] || match?.[2] || `数据操作日报_${payload.date || 'today'}.xlsx`);
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    window.setTimeout(() => {
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    }, 1000);
+    return { fileName, size: blob.size };
   }
 };
