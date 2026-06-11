@@ -357,9 +357,5 @@ export const dataOpsApi = {
     form.append('scene', params.scene);
     const res = await client.post('/recognition/social-metrics', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
     return unwrapResponse<DataOpsRecognitionResponse>(res.data);
-  },
-  async generateDailyReport(payload: { date?: string }) {
-    const res = await client.post('/data-ops/reports/daily', payload);
-    return unwrapResponse<any>(res.data);
   }
 };
