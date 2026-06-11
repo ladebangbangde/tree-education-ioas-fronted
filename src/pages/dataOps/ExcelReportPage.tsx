@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Card, Checkbox, DatePicker, Form, Modal, Select, Space, Statistic, Table, message } from 'antd';
+import { Button, Card, Checkbox, DatePicker, Form, Modal, Select, Space, Statistic, Table, Typography, message } from 'antd';
 import dayjs from 'dayjs';
 import { exportDataOpsExcelReport, getDataOpsExcelReportLogs, getDataOpsExcelReportPreview, type DataOpsExcelReportLog, type DataOpsExcelReportPreview } from '@/api/dataOpsReport';
 
@@ -35,12 +35,12 @@ export default function ExcelReportPage() {
       onOk: async () => {
         setExporting(true);
         try {
-          await exportDataOpsExcelReport({
+          const result = await exportDataOpsExcelReport({
             date: values.date ? values.date.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
             platform: values.platform || 'ALL',
             onlyConfirmed: values.onlyConfirmed ?? true
           });
-          message.success('报表已生成并开始下载');
+          message.success(`报表已下载：${result.fileName}`);
           await loadLogs();
           await loadPreview();
         } finally { setExporting(false); }
@@ -65,6 +65,10 @@ export default function ExcelReportPage() {
           <Form.Item name='onlyConfirmed' valuePropName='checked'><Checkbox>只导出已确认数据</Checkbox></Form.Item>
           <Form.Item><Space><Button onClick={loadPreview} loading={loading}>刷新预览</Button><Button type='primary' onClick={onExport} loading={exporting}>生成 Excel 报表</Button></Space></Form.Item>
         </Form>
+        <div style={{ marginTop: 12 }}>
+          <Typography.Text type='secondary'>当前命中表：{preview?.tableName || '-'}</Typography.Text>
+          <Typography.Text type='secondary' style={{ marginLeft: 16 }}>取数模式：{preview?.sourceMode || '-'}</Typography.Text>
+        </div>
       </Card>
 
       <Space size={16} wrap>
