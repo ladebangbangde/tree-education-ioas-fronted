@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Button, Card, Checkbox, DatePicker, Form, Modal, Select, Space, Statistic, Table, Typography, message } from 'antd';
+import { Button, Card, Checkbox, DatePicker, Drawer, Form, Modal, Select, Space, Statistic, Table, Tag, Typography, message } from 'antd';
 import dayjs from 'dayjs';
-import { exportDataOpsExcelReport, getDataOpsExcelReportLogs, getDataOpsExcelReportPreview, type DataOpsExcelReportLog, type DataOpsExcelReportPreview } from '@/api/dataOpsReport';
+import { exportDataOpsExcelReport, getDataOpsExcelReportLogs, getDataOpsExcelReportPreview, getDataOpsExcelReportTop5, type DataOpsExcelReportLog, type DataOpsExcelReportPreview, type DataOpsExcelReportTop5Response } from '@/api/dataOpsReport';
 
 export default function ExcelReportPage() {
   const [form] = Form.useForm();
@@ -9,6 +9,9 @@ export default function ExcelReportPage() {
   const [logs, setLogs] = useState<DataOpsExcelReportLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerLoading, setDrawerLoading] = useState(false);
+  const [drawerData, setDrawerData] = useState<DataOpsExcelReportTop5Response>();
 
   const loadLogs = async () => {
     try { setLogs(await getDataOpsExcelReportLogs()); } catch { setLogs([]); }
@@ -25,6 +28,17 @@ export default function ExcelReportPage() {
       });
       setPreview(data);
     } finally { setLoading(false); }
+  };
+
+  const openTop5Drawer = async (record: DataOpsExcelReportLog) => {
+    setDrawerOpen(true);
+    setDrawerLoading(true);
+    try {
+      const data = await getDataOpsExcelReportTop5(record.id);
+      setDrawerData(data);
+    } finally {
+      setDrawerLoading(false);
+    }
   };
 
   const onExport = async () => {
@@ -85,9 +99,51 @@ export default function ExcelReportPage() {
           { title: '平台', dataIndex: 'platform' },
           { title: '内容数量', dataIndex: 'total_content_count' },
           { title: '导出人', dataIndex: 'exported_by_name' },
-          { title: '文件名', dataIndex: 'file_name' }
+          { title: '文件名', dataIndex: 'file_name' },
+          { title: '操作', key: 'action', render: (_, record: DataOpsExcelReportLog) => <Button type='link' onClick={() => openTop5Drawer(record)}>查看前5条</Button> }
         ]} />
       </Card>
+
+      <Drawer width={860} title='Excel 报表前5条数据预览' open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+        <Space direction='vertical' size={12} style={{ width: '100%' }}>
+          <div>
+            <Typography.Text strong>文件：</Typography.Text>
+            <Typography.Text>{drawerData?.fileName || '-'}</Typography.Text>
+            <Tag style={{ marginLeft: 12 }}>{drawerData?.platform || '-'}</Tag>
+            <Tag>{drawerData?.reportDate || '-'}</Tag>
+          </div>
+          <div>
+            <Typography.Text type='secondary'>命中表：{drawerData?.tableName || '-'}</Typography.Text>
+            <Typography.Text type='secondary' style={{ marginLeft: 16 }}>取数模式：{drawerData?.sourceMode || '-'}</Typography.Text>
+          </div>
+          <Table
+            rowKey={(_, index) => String(index)}
+            loading={drawerLoading}
+            pagination={false}
+            scroll={{ x: 1200 }}
+            dataSource={drawerData?.rows || []}
+            columns={[
+              { title: '主题包', dataIndex: 'packageName', width: 140 },
+              { title: '平台', dataIndex: 'platform', width: 100 },
+              { title: '账号', dataIndex: 'account', width: 120 },
+              { title: '标题', dataIndex: 'title', width: 220 },
+              { title: '子主题', dataIndex: 'subTopic', width: 140 },
+              { title: '内容类型', dataIndex: 'contentType', width: 100 },
+              { title: '播放', dataIndex: 'page1Views', width: 100 },
+              { title: '点赞', dataIndex: 'page1Likes', width: 100 },
+              { title: '评论', dataIndex: 'page1Comments', width: 100 },
+              { title: '收藏', dataIndex: 'page1Favorites', width: 100 },
+              { title: '转发', dataIndex: 'page1Shares', width: 100 },
+              { title: '曝光', dataIndex: 'page2Exposure', width: 100 },
+              { title: '主页访问', dataIndex: 'page2ProfileViews', width: 120 },
+              { title: '涨粉', dataIndex: 'page2Followers', width: 100 },
+              { title: '完播率', dataIndex: 'page3CompletionRate', width: 100 },
+              { title: '互动率', dataIndex: 'page3EngagementRate', width: 100 },
+              { title: '人工修正', dataIndex: 'corrected', width: 100, render: (v: boolean) => v ? '是' : '否' }
+            ]}
+          />
+        </Space>
+      </Drawer>
     </Space>
   );
 }
