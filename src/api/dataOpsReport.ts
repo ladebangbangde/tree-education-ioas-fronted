@@ -5,6 +5,8 @@ export interface DataOpsExcelReportPreview {
   platform: string;
   topicPackageId?: number | null;
   onlyConfirmed: boolean;
+  tableName?: string;
+  sourceMode?: string;
   totalContentCount: number;
   confirmedCount: number;
   unconfirmedCount: number;
@@ -31,12 +33,12 @@ export async function getDataOpsExcelReportPreview(params: {
   topicPackageId?: number | null;
   onlyConfirmed?: boolean;
 }) {
-  const res = await client.get('/data-ops/reports/export-preview', { params });
+  const res = await client.get('/data-ops/reports2/export-preview', { params });
   return unwrapResponse<DataOpsExcelReportPreview>(res.data);
 }
 
 export async function getDataOpsExcelReportLogs() {
-  const res = await client.get('/data-ops/reports/export-logs');
+  const res = await client.get('/data-ops/reports2/export-logs');
   return unwrapResponse<DataOpsExcelReportLog[]>(res.data);
 }
 
@@ -46,19 +48,34 @@ export async function exportDataOpsExcelReport(payload: {
   topicPackageId?: number | null;
   onlyConfirmed?: boolean;
 }) {
-  const res = await client.post('/data-ops/reports/export-excel', payload, {
+  const res = await client.post('/data-ops/reports2/export-excel', payload, {
     responseType: 'blob',
     timeout: 0
   });
+  const contentType = String(res.headers['content-type'] || '');
+  const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: contentType || 'application/octet-stream' });
+  if (!contentType.includes('spreadsheetml') && !contentType.includes('application/octet-stream')) {
+    const text = await blob.text();
+    try {
+      const parsed = JSON.parse(text);
+      throw new Error(parsed?.message || parsed?.msg || '导出失败');
+    } catch {
+      throw new Error(text || '导出失败');
+    }
+  }
+  if (!blob.size) throw new Error('导出的文件为空');
   const disposition = res.headers['content-disposition'] || '';
   const match = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^"]+)"?/);
   const fileName = decodeURIComponent(match?.[1] || match?.[2] || `数据操作日报_${payload.date || 'today'}.xlsx`);
-  const url = window.URL.createObjectURL(new Blob([res.data]));
+  const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = fileName;
   document.body.appendChild(a);
   a.click();
-  a.remove();
-  window.URL.revokeObjectURL(url);
+  window.setTimeout(() => {
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  }, 1000);
+  return { fileName, size: blob.size };
 }
