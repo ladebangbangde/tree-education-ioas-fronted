@@ -21,3 +21,15 @@ export type ButtonAction =
   | 'unpublish'
   | 'manage'
   | 'view'
+  | string;
+
+export const roles: Role[] = [
+  'SUPER_ADMIN',
+  'MEDIA',
+  'OPERATOR',
+  'CONSULTANT',
+  'DATA',
+  'ADMINISTRATIVE',
+  'ANCHOR',
+  'IDLE_ANCHOR'
+];
