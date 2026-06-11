@@ -12,9 +12,11 @@ const optionalStringValue = (...values: unknown[]) => {
   return value || undefined;
 };
 
+const validRoles: Role[] = ['SUPER_ADMIN', 'MEDIA', 'OPERATOR', 'CONSULTANT', 'DATA', 'ADMINISTRATIVE', 'ANCHOR', 'IDLE_ANCHOR'];
+
 const normalizeRole = (role?: string, fallback: Role = 'OPERATOR'): Role => {
-  const value = (role || fallback).toUpperCase();
-  return (['SUPER_ADMIN', 'MEDIA', 'OPERATOR', 'CONSULTANT', 'DATA', 'ADMINISTRATIVE'].includes(value) ? value : fallback) as Role;
+  const value = (role || fallback).toUpperCase() as Role;
+  return validRoles.includes(value) ? value : fallback;
 };
 
 export function normalizeAuthUser(dto: any, fallbackRole: Role = 'OPERATOR') {
