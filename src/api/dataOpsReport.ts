@@ -27,6 +27,44 @@ export interface DataOpsExcelReportLog {
   exported_at: string;
 }
 
+export interface DataOpsExcelReportTopRow {
+  date: string;
+  packageName: string;
+  platform: string;
+  account: string;
+  title: string;
+  subTopic: string;
+  contentType: string;
+  publishedAt: string;
+  operatorName: string;
+  mediaName: string;
+  page1Views: number;
+  page1Likes: number;
+  page1Comments: number;
+  page1Favorites: number;
+  page1Shares: number;
+  page2Exposure: number;
+  page2ProfileViews: number;
+  page2Followers: number;
+  page3CompletionRate: number;
+  page3EngagementRate: number;
+  ocrConfidence: number;
+  corrected: boolean;
+  reviewer: string;
+  createdAt: string;
+  confirmed: boolean;
+}
+
+export interface DataOpsExcelReportTop5Response {
+  logId: number;
+  reportDate: string;
+  platform: string;
+  fileName: string;
+  tableName?: string;
+  sourceMode?: string;
+  rows: DataOpsExcelReportTopRow[];
+}
+
 export async function getDataOpsExcelReportPreview(params: {
   date?: string;
   platform?: string;
@@ -40,6 +78,11 @@ export async function getDataOpsExcelReportPreview(params: {
 export async function getDataOpsExcelReportLogs() {
   const res = await client.get('/data-ops/reports2/export-logs');
   return unwrapResponse<DataOpsExcelReportLog[]>(res.data);
+}
+
+export async function getDataOpsExcelReportTop5(logId: number | string) {
+  const res = await client.get(`/data-ops/reports2/export-logs/${logId}/top5`);
+  return unwrapResponse<DataOpsExcelReportTop5Response>(res.data);
 }
 
 export async function exportDataOpsExcelReport(payload: {
