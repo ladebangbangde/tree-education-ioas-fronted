@@ -16,9 +16,11 @@ interface AuthState {
   logout: () => void;
 }
 
+const validRoles: Role[] = ['SUPER_ADMIN', 'MEDIA', 'OPERATOR', 'CONSULTANT', 'DATA', 'ADMINISTRATIVE', 'ANCHOR', 'IDLE_ANCHOR'];
+
 const normalizeStoredRole = (role?: string | null): Role => {
-  const value = (role || 'OPERATOR').toUpperCase();
-  return (['SUPER_ADMIN', 'MEDIA', 'OPERATOR', 'CONSULTANT', 'DATA', 'ADMINISTRATIVE'].includes(value) ? value : 'OPERATOR') as Role;
+  const value = (role || 'OPERATOR').toUpperCase() as Role;
+  return validRoles.includes(value) ? value : 'OPERATOR';
 };
 
 const defaultDepartment = (role: Role) => {
@@ -27,6 +29,7 @@ const defaultDepartment = (role: Role) => {
   if (role === 'MEDIA') return '媒体部';
   if (role === 'DATA') return '数据部';
   if (role === 'ADMINISTRATIVE') return '行政部';
+  if (role === 'ANCHOR' || role === 'IDLE_ANCHOR') return '主播部';
   return '运营部';
 };
 
