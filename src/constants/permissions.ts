@@ -56,7 +56,6 @@ const routeRoles: Array<{ pattern: string; roles: Role[] }> = [
   { pattern: '/reports', roles: ['MEDIA', 'OPERATOR'] },
   { pattern: '/data-ops/operation-data', roles: ['DATA'] },
   { pattern: '/data-ops/recognition-review', roles: ['DATA'] },
-  { pattern: '/data-ops/excel-report', roles: ['DATA'] },
   { pattern: '/leads/list', roles: ['CONSULTANT'] },
   { pattern: '/leads/detail/:id', roles: ['CONSULTANT'] },
   { pattern: '/leads/assign', roles: ['CONSULTANT'] },
