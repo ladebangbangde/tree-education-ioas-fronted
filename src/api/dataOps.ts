@@ -208,7 +208,7 @@ export const dataOpsApi = {
     return unwrapResponse<DataOpsRecognitionResponse>(res.data);
   },
   async generateDailyReport(payload: { date?: string }) {
-    const res = await client.post('/data-ops/reports/daily', payload, {
+    const res = await client.post('/data-ops/reports-export/daily', payload, {
       responseType: 'blob',
       timeout: 0
     });
