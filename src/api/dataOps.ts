@@ -300,7 +300,7 @@ export const dataOpsApi = {
     const res = await client.post('/data-ops/platform-topics/' + topicId + '/cover', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 0 });
     return unwrapResponse<DataOpsPlatformTopic>(res.data);
   },
-  async confirmContent(topicId: number | string, payload: { contentTitle?: string; contentSummary?: string; contentDate?: string; contentType?: DataOpsContentType }) {
+  async confirmContent(topicId: number | string, payload: { contentId?: number | string; contentTitle?: string; contentSummary?: string; contentDate?: string; contentType?: DataOpsContentType }) {
     const res = await client.post('/data-ops/platform-topics/' + topicId + '/contents/confirm-current', payload);
     return unwrapResponse<DataOpsContent>(res.data);
   },
