@@ -114,6 +114,7 @@ export interface DataOpsAccountConfirmResponse {
   accountId?: number;
   accountName: string;
   platformUserId: string;
+  contentType?: DataOpsContentType;
   status: string;
 }
 
@@ -290,9 +291,13 @@ export const dataOpsApi = {
     const res = await client.get('/data-ops/platform-topics/' + topicId + '/recognition-status');
     return unwrapResponse<DataOpsTopicRecognitionStatus>(res.data);
   },
-  async confirmAccount(topicId: number | string, payload: { accountName: string; platformUserId: string }) {
+  async confirmAccount(topicId: number | string, payload: { accountName: string; platformUserId: string; contentType: DataOpsContentType }) {
     const res = await client.post('/data-ops/platform-topics/' + topicId + '/account/confirm', payload);
     return unwrapResponse<DataOpsAccountConfirmResponse>(res.data);
+  },
+  async updateTopicContentType(topicId: number | string, payload: { contentType: DataOpsContentType }) {
+    const res = await client.post('/data-ops/platform-topics/' + topicId + '/content-type', payload);
+    return unwrapResponse<{ topicId: number; contentType: DataOpsContentType; status: string }>(res.data);
   },
   async uploadCover(topicId: number | string, file: File) {
     const form = new FormData();
@@ -329,7 +334,7 @@ export const dataOpsApi = {
     const res = await client.post('/data-ops/reports-export/daily', payload, { responseType: 'blob', timeout: 0 });
     const contentType = String(res.headers['content-type'] || '');
     const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: contentType || 'application/octet-stream' });
-    if (!contentType.includes('spreadsheetml') && !contentType.includes('application/octet-stream')) {
+    if (!contentType.includes('spreadsheetml') && !contentType.includes('application/octet-stream') && !contentType.includes('zip')) {
       const text = await blob.text();
       throw new Error(text || '导出失败');
     }
