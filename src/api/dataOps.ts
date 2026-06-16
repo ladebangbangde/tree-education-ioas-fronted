@@ -227,6 +227,15 @@ export interface DataOpsCurrentTopicGenerateResponse {
   package?: DataOpsPackage;
 }
 
+export interface DataOpsDeleteResult {
+  deleted?: boolean;
+  deletedAssets?: number;
+  deletedContents?: number;
+  deletedTopics?: number;
+  deletedFiles?: number;
+  [key: string]: any;
+}
+
 function withStablePreviewUrl(asset: DataOpsAsset): DataOpsAsset {
   if (!asset?.id) return asset;
   const url = `/api/v1/data-ops/assets/${asset.id}/file`;
@@ -319,7 +328,19 @@ export const dataOpsApi = {
   },
   async deleteAsset(assetId: number | string) {
     const res = await client.delete('/data-ops/assets/' + assetId);
-    return unwrapResponse<any>(res.data);
+    return unwrapResponse<DataOpsDeleteResult>(res.data);
+  },
+  async deleteContent(contentId: number | string) {
+    const res = await client.delete('/data-ops/contents/' + contentId);
+    return unwrapResponse<DataOpsDeleteResult>(res.data);
+  },
+  async deletePlatformTopic(topicId: number | string) {
+    const res = await client.delete('/data-ops/platform-topics/' + topicId);
+    return unwrapResponse<DataOpsDeleteResult>(res.data);
+  },
+  async deletePackage(packageId: number | string) {
+    const res = await client.delete('/data-ops/packages/' + packageId);
+    return unwrapResponse<DataOpsDeleteResult>(res.data);
   },
   async recognizeAsset(assetId: number | string, params?: { platform?: PlatformCode; scene?: string }) {
     const res = await client.post('/data-ops/assets/' + assetId + '/recognize-current', null, { params, timeout: 0 });
