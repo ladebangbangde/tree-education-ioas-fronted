@@ -132,6 +132,10 @@ export interface DataOpsPackage {
   operatorNames?: string;
   media_names?: string;
   mediaNames?: string;
+  anchor_user_ids?: string;
+  anchorUserIds?: string;
+  anchor_names?: string;
+  anchorNames?: string;
   status?: string;
   report_status?: string;
   reportStatus?: string;
@@ -276,12 +280,17 @@ export const dataOpsApi = {
     const res = await client.get('/data-ops/users', { params: { role } });
     return unwrapResponse<DataOpsUserOption[]>(res.data);
   },
+  async anchorUsers() {
+    const res = await client.get('/data-ops/anchor-users');
+    return unwrapResponse<DataOpsUserOption[]>(res.data);
+  },
   async packages(params?: { date?: string }) {
     const res = await client.get('/data-ops/packages', { params });
     return unwrapResponse<DataOpsPackage[]>(res.data);
   },
-  async createPackage(payload: { topicDate?: string; operatorUserIds: number[]; mediaUserIds: number[] }) {
-    const res = await client.post('/data-ops/packages', payload);
+  async createPackage(payload: { topicDate?: string; operatorUserIds: number[]; mediaUserIds: number[]; anchorUserIds?: number[] }) {
+    const endpoint = payload.anchorUserIds?.length ? '/data-ops/packages-with-anchor' : '/data-ops/packages';
+    const res = await client.post(endpoint, payload);
     return normalizePackage(unwrapResponse<DataOpsPackage>(res.data));
   },
   async packageDetail(id: number | string) {
