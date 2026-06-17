@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node scripts/force-anchor-dataops.cjs",
     "dev": "vite",
+    "prebuild": "node scripts/force-anchor-dataops.cjs",
     "build": "vite build",
     "preview": "vite preview"
   },
