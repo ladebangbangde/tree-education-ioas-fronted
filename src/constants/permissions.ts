@@ -35,13 +35,13 @@ export const roles: Role[] = [
 ];
 
 export const roleLabels = {
-  SUPER_ADMIN: 'Super Admin',
-  MEDIA: 'Media',
-  OPERATOR: 'Operator',
-  CONSULTANT: 'Consultant',
-  DATA: 'Data Operator',
-  ADMINISTRATIVE: 'Administrative',
-  ANCHOR: 'Anchor',
+  SUPER_ADMIN: '系统超管',
+  MEDIA: '媒体',
+  OPERATOR: '运营',
+  CONSULTANT: '顾问',
+  DATA: '数据操作员',
+  ADMINISTRATIVE: '行政',
+  ANCHOR: '主播',
   IDLE_ANCHOR: '闲杂主播'
 } as Record<Role, string>;
 
@@ -143,5 +143,6 @@ export function getDefaultRoute(role: Role) {
   if (role === 'CONSULTANT') return '/dashboard';
   if (role === 'DATA') return '/data-ops/operation-data';
   if (role === 'ADMINISTRATIVE') return '/dashboard';
+  if (role === 'ANCHOR') return '/profile/settings';
   return '/403';
 }
