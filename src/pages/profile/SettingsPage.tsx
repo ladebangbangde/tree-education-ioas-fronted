@@ -3,7 +3,9 @@ import { UploadOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { PageHeader, StatusTag } from '@/components';
 import { profileApi } from '@/api/profile';
+import { roleLabels } from '@/constants/permissions';
 import { useAuthStore } from '@/store/auth';
+import type { Role } from '@/types';
 
 const regionOptions = [
   { label: '澳洲', value: 'AUSTRALIA' },
@@ -15,6 +17,7 @@ const regionOptions = [
 
 const statusText: Record<string, string> = { PENDING: '待审批', APPROVED: '已通过', REJECTED: '已拒绝' };
 const PUBLIC_BIO_MAX_LENGTH = 80;
+const roleLabel = (value?: string) => value && roleLabels[value as Role] ? roleLabels[value as Role] : value || '-';
 
 export default function ProfileSettingsPage() {
   const role = useAuthStore(s => s.role);
@@ -103,7 +106,7 @@ export default function ProfileSettingsPage() {
       <Descriptions bordered column={2} size='small' items={[
         { label: '账号', children: me?.username || '-' },
         { label: '姓名', children: me?.displayName || '-' },
-        { label: '角色', children: me?.roleCode || '-' },
+        { label: '角色', children: roleLabel(me?.roleCode) },
         { label: '部门', children: me?.department || '-' },
         { label: '团队', children: me?.teamName || '-' },
         { label: '电话', children: me?.phone || '-' },
