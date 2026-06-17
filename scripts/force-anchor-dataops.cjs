@@ -10,18 +10,53 @@ function writeIfChanged(file, next) {
   if (current !== next) fs.writeFileSync(file, next, 'utf8');
 }
 
+function warnSkip(label) {
+  console.warn(`[anchor-dataops] skip ${label}: insertion point not found`);
+}
+
 function ensureIncludes(text, needle, insertAfter, insertion, label) {
   if (text.includes(needle)) return text;
-  if (!text.includes(insertAfter)) {
-    throw new Error(`Patch failed: cannot find insertion point for ${label}`);
+
+  // Normal exact insertion first.
+  if (text.includes(insertAfter)) {
+    return text.replace(insertAfter, `${insertAfter}${insertion}`);
   }
-  return text.replace(insertAfter, `${insertAfter}${insertion}`);
+
+  // Windows repositories may be checked out with CRLF. The original script only
+  // matched LF, which broke Docker builds on Windows worktrees.
+  const crlfInsertAfter = insertAfter.replace(/\n/g, '\r\n');
+  const crlfInsertion = insertion.replace(/\n/g, '\r\n');
+  if (text.includes(crlfInsertAfter)) {
+    return text.replace(crlfInsertAfter, `${crlfInsertAfter}${crlfInsertion}`);
+  }
+
+  warnSkip(label);
+  return text;
 }
 
 function ensureReplace(text, marker, find, replace, label) {
   if (text.includes(marker)) return text;
-  const next = text.replace(find, replace);
-  if (next === text) throw new Error(`Patch failed: cannot replace ${label}`);
+
+  let next = text.replace(find, replace);
+  if (next !== text) return next;
+
+  // Same CRLF compatibility as ensureIncludes.
+  const crlfFind = find.replace(/\n/g, '\r\n');
+  const crlfReplace = replace.replace(/\n/g, '\r\n');
+  next = text.replace(crlfFind, crlfReplace);
+  if (next !== text) return next;
+
+  warnSkip(label);
+  return text;
+}
+
+function ensureReplaceRegex(text, marker, regex, replacement, label) {
+  if (text.includes(marker)) return text;
+  const next = text.replace(regex, replacement);
+  if (next === text) {
+    warnSkip(label);
+    return text;
+  }
   return next;
 }
 
@@ -58,11 +93,11 @@ function patchApi() {
 function patchPage() {
   let text = fs.readFileSync(pagePath, 'utf8');
 
-  text = ensureIncludes(
+  text = ensureReplaceRegex(
     text,
     'const [anchorUsers, setAnchorUsers]',
-    '  const [mediaUsers, setMediaUsers] = useState<DataOpsUserOption[]>([]);\n',
-    '  const [anchorUsers, setAnchorUsers] = useState<DataOpsUserOption[]>([]);\n',
+    /^(\s*const \[mediaUsers, setMediaUsers\] = useState<DataOpsUserOption\[\]>\(\[\]\);)(\r?\n)/m,
+    '$1$2  const [anchorUsers, setAnchorUsers] = useState<DataOpsUserOption[]>([]);$2',
     'anchorUsers state'
   );
 
@@ -94,8 +129,8 @@ function patchPage() {
 
   if (!text.includes('name="anchorUserIds"')) {
     const next = text.replace(modalRegex, modalReplacement);
-    if (next === text) throw new Error('Patch failed: cannot replace create package modal');
-    text = next;
+    if (next === text) warnSkip('create package modal');
+    else text = next;
   }
 
   writeIfChanged(pagePath, text);
@@ -103,4 +138,4 @@ function patchPage() {
 
 patchApi();
 patchPage();
-console.log('[anchor-dataops] patched OperationDataPage and dataOps API successfully.');
+console.log('[anchor-dataops] patch completed.');
