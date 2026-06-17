@@ -1,0 +1,1 @@
+Run node scripts/patch-anchor-dataops.cjs before frontend build to add the anchor teacher selector in data operation topic package modal.
