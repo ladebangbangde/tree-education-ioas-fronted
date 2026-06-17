@@ -13,7 +13,7 @@ import {
 import type { AppMenuItem } from '@/types';
 
 export const menuConfig: AppMenuItem[] = [
-  { key: 'profile-settings', label: '个人信息设置', path: '/profile/settings', icon: <UserOutlined />, roles: ['MEDIA', 'OPERATOR', 'CONSULTANT', 'DATA', 'ADMINISTRATIVE'] },
+  { key: 'profile-settings', label: '个人信息设置', path: '/profile/settings', icon: <UserOutlined />, roles: ['MEDIA', 'OPERATOR', 'CONSULTANT', 'DATA', 'ADMINISTRATIVE', 'ANCHOR'] },
   { key: 'media-content', label: '内容管理', path: '/media/content', icon: <ReadOutlined />, roles: ['MEDIA'] },
   { key: 'operator-leads', label: '线索中心', path: '/operator/leads', icon: <TeamOutlined />, roles: ['OPERATOR'] },
   { key: 'media-assets', label: '媒体资源中心', path: '/media-assets', icon: <FolderOpenOutlined />, roles: ['MEDIA', 'OPERATOR'] },
