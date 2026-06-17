@@ -20,6 +20,7 @@ const defaultOptions = {
     { value: 'MEDIA', label: '媒体部' },
     { value: 'OPERATION', label: '运营部' },
     { value: 'DATA', label: '数据部' },
+    { value: 'ANCHOR', label: '主播部' },
     { value: 'ADMIN', label: '行政部' }
   ],
   statuses: [
