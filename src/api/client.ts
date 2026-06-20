@@ -2,8 +2,8 @@ import axios from 'axios';
 import { message } from 'antd';
 import type { ApiResponse, PageResult } from '@/types/api';
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:1201/api/v1';
-export const API_ROOT_URL = import.meta.env.VITE_API_ROOT_URL || 'http://localhost:1201/api';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+export const API_ROOT_URL = import.meta.env.VITE_API_ROOT_URL || '/api';
 const DEFAULT_API_TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT || 60000);
 
 declare module 'axios' {
