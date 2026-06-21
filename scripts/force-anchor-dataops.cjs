@@ -17,13 +17,10 @@ function warnSkip(label) {
 function ensureIncludes(text, needle, insertAfter, insertion, label) {
   if (text.includes(needle)) return text;
 
-  // Normal exact insertion first.
   if (text.includes(insertAfter)) {
     return text.replace(insertAfter, `${insertAfter}${insertion}`);
   }
 
-  // Windows repositories may be checked out with CRLF. The original script only
-  // matched LF, which broke Docker builds on Windows worktrees.
   const crlfInsertAfter = insertAfter.replace(/\n/g, '\r\n');
   const crlfInsertion = insertion.replace(/\n/g, '\r\n');
   if (text.includes(crlfInsertAfter)) {
@@ -40,7 +37,6 @@ function ensureReplace(text, marker, find, replace, label) {
   let next = text.replace(find, replace);
   if (next !== text) return next;
 
-  // Same CRLF compatibility as ensureIncludes.
   const crlfFind = find.replace(/\n/g, '\r\n');
   const crlfReplace = replace.replace(/\n/g, '\r\n');
   next = text.replace(crlfFind, crlfReplace);
@@ -62,6 +58,14 @@ function ensureReplaceRegex(text, marker, regex, replacement, label) {
 
 function patchApi() {
   let text = fs.readFileSync(apiPath, 'utf8');
+
+  text = ensureIncludes(
+    text,
+    'display_name_zh?: string;',
+    '  displayName?: string;\n',
+    '  display_name_zh?: string;\n  displayNameZh?: string;\n',
+    'DataOpsUserOption Chinese display fields'
+  );
 
   text = ensureIncludes(
     text,
@@ -95,6 +99,14 @@ function patchPage() {
 
   text = ensureReplaceRegex(
     text,
+    'display_name_zh',
+    /function userOptions\(rows: DataOpsUserOption\[\]\) \{ return rows\.map\(row => \(\{ value: row\.id, label: `\$\{pick<string>\(row, 'display_name', 'displayName'\) \|\| row\.username \|\| row\.id\}\$\{row\.department \? ` · \$\{row\.department\}` : ''\}` \}\)\); \}/,
+    "function userOptions(rows: DataOpsUserOption[]) { return rows.map(row => ({ value: row.id, label: `${pick<string>(row as any, 'display_name_zh', 'displayNameZh') || pick<string>(row, 'display_name', 'displayName') || row.username || row.id}${row.department ? ` · ${row.department}` : ''}` })); }",
+    'Chinese user option labels'
+  );
+
+  text = ensureReplaceRegex(
+    text,
     'const [anchorUsers, setAnchorUsers]',
     /^(\s*const \[mediaUsers, setMediaUsers\] = useState<DataOpsUserOption\[\]>\(\[\]\);)(\r?\n)/m,
     '$1$2  const [anchorUsers, setAnchorUsers] = useState<DataOpsUserOption[]>([]);$2',
@@ -121,13 +133,13 @@ function patchPage() {
   const modalReplacement = `    <Modal title="创建主题包" open={packageOpen} onCancel={() => setPackageOpen(false)} onOk={createPackage} confirmLoading={packageSubmitting} destroyOnClose>
       <Form form={packageForm} layout="vertical" initialValues={{ topicDate: today }}>
         <Form.Item name="topicDate" label="主题日期" rules={[{ required: true, message: '请选择日期' }]}><Input placeholder="YYYY-MM-DD" /></Form.Item>
-        <Form.Item name="operatorUserIds" label="运营人员" rules={[{ required: true, message: '请选择运营人员' }]}><Select mode="multiple" options={userOptions(operatorUsers)} /></Form.Item>
-        <Form.Item name="mediaUserIds" label="媒体人员" rules={[{ required: true, message: '请选择媒体人员' }]}><Select mode="multiple" options={userOptions(mediaUsers)} /></Form.Item>
-        <Form.Item name="anchorUserIds" label="主播老师" rules={[{ required: true, message: '请选择主播老师' }]}><Select mode="multiple" options={userOptions(anchorUsers)} placeholder="请选择主播1/主播2/主播3" /></Form.Item>
+        <Form.Item name="operatorUserIds" label="运营人员" rules={[{ required: true, message: '请选择运营人员' }]}><Select mode="multiple" options={userOptions(operatorUsers)} placeholder="可选择多个运营" /></Form.Item>
+        <Form.Item name="mediaUserIds" label="媒体/美工人员" rules={[{ required: true, message: '请选择媒体/美工人员' }]}><Select mode="multiple" options={userOptions(mediaUsers)} placeholder="可选择多个媒体/美工" /></Form.Item>
+        <Form.Item name="anchorUserIds" label="负责口播" rules={[{ required: true, message: '请选择负责口播人员' }]}><Select mode="multiple" options={userOptions(anchorUsers)} placeholder="可选择多名口播/主播" /></Form.Item>
       </Form>
     </Modal>`;
 
-  if (!text.includes('name="anchorUserIds"')) {
+  if (!text.includes('name="anchorUserIds"') || text.includes('label="主播老师"')) {
     const next = text.replace(modalRegex, modalReplacement);
     if (next === text) warnSkip('create package modal');
     else text = next;
