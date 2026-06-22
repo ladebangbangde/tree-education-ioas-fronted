@@ -101,9 +101,19 @@ function patchPage() {
     text,
     'display_name_zh',
     /function userOptions\(rows: DataOpsUserOption\[\]\) \{ return rows\.map\(row => \(\{ value: row\.id, label: `\$\{pick<string>\(row, 'display_name', 'displayName'\) \|\| row\.username \|\| row\.id\}\$\{row\.department \? ` · \$\{row\.department\}` : ''\}` \}\)\); \}/,
-    "function userOptions(rows: DataOpsUserOption[]) { return rows.map(row => ({ value: row.id, label: `${pick<string>(row as any, 'display_name_zh', 'displayNameZh') || pick<string>(row, 'display_name', 'displayName') || row.username || row.id}${row.department ? ` · ${row.department}` : ''}` })); }",
-    'Chinese user option labels'
+    "function userOptions(rows: DataOpsUserOption[]) { return rows.map(row => ({ value: row.id, label: `${pick<string>(row as any, 'display_name_zh', 'displayNameZh') || pick<string>(row, 'display_name', 'displayName') || row.username || row.id}${row.department ? ` · ${row.department}` : ''}` })); }\nfunction userOptionsWithNone(rows: DataOpsUserOption[], noneLabel: string, noneValue: number) { return [{ value: noneValue, label: noneLabel }, ...userOptions(rows)]; }",
+    'Chinese user option labels and none options'
   );
+
+  if (!text.includes('function userOptionsWithNone')) {
+    text = ensureIncludes(
+      text,
+      'function userOptionsWithNone',
+      "function userOptions(rows: DataOpsUserOption[]) { return rows.map(row => ({ value: row.id, label: `${pick<string>(row as any, 'display_name_zh', 'displayNameZh') || pick<string>(row, 'display_name', 'displayName') || row.username || row.id}${row.department ? ` · ${row.department}` : ''}` })); }\n",
+      "function userOptionsWithNone(rows: DataOpsUserOption[], noneLabel: string, noneValue: number) { return [{ value: noneValue, label: noneLabel }, ...userOptions(rows)]; }\n",
+      'none role options helper'
+    );
+  }
 
   text = ensureReplaceRegex(
     text,
@@ -133,13 +143,13 @@ function patchPage() {
   const modalReplacement = `    <Modal title="创建主题包" open={packageOpen} onCancel={() => setPackageOpen(false)} onOk={createPackage} confirmLoading={packageSubmitting} destroyOnClose>
       <Form form={packageForm} layout="vertical" initialValues={{ topicDate: today }}>
         <Form.Item name="topicDate" label="主题日期" rules={[{ required: true, message: '请选择日期' }]}><Input placeholder="YYYY-MM-DD" /></Form.Item>
-        <Form.Item name="operatorUserIds" label="运营人员" rules={[{ required: true, message: '请选择运营人员' }]}><Select mode="multiple" options={userOptions(operatorUsers)} placeholder="可选择多个运营" /></Form.Item>
-        <Form.Item name="mediaUserIds" label="媒体/美工人员" rules={[{ required: true, message: '请选择媒体/美工人员' }]}><Select mode="multiple" options={userOptions(mediaUsers)} placeholder="可选择多个媒体/美工" /></Form.Item>
-        <Form.Item name="anchorUserIds" label="负责口播" rules={[{ required: true, message: '请选择负责口播人员' }]}><Select mode="multiple" options={userOptions(anchorUsers)} placeholder="可选择多名口播/主播" /></Form.Item>
+        <Form.Item name="operatorUserIds" label="运营人员" rules={[{ required: true, message: '请选择运营人员或无运营' }]}><Select mode="multiple" options={userOptionsWithNone(operatorUsers, '无运营', -1)} placeholder="可选择多个运营；无人负责则选无运营" /></Form.Item>
+        <Form.Item name="mediaUserIds" label="媒体/美工人员" rules={[{ required: true, message: '请选择媒体/美工人员或无美工' }]}><Select mode="multiple" options={userOptionsWithNone(mediaUsers, '无美工', -2)} placeholder="可选择多个媒体/美工；无人负责则选无美工" /></Form.Item>
+        <Form.Item name="anchorUserIds" label="负责口播/主播" rules={[{ required: true, message: '请选择负责口播人员或无主播' }]}><Select mode="multiple" options={userOptionsWithNone(anchorUsers, '无主播', -3)} placeholder="可选择多名口播/主播；无人负责则选无主播" /></Form.Item>
       </Form>
     </Modal>`;
 
-  if (!text.includes('name="anchorUserIds"') || text.includes('label="主播老师"')) {
+  if (!text.includes('userOptionsWithNone(operatorUsers') || !text.includes('name="anchorUserIds"')) {
     const next = text.replace(modalRegex, modalReplacement);
     if (next === text) warnSkip('create package modal');
     else text = next;
