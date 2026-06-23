@@ -1,4 +1,6 @@
-import { Card, Empty, Space, Table, Tag } from 'antd';
+import { Button, Card, Empty, Input, Space, Table, Tag, message } from 'antd';
+import { useState } from 'react';
+import client from '@/api/client';
 import type { DataOpsContentType, DataOpsMetricRow } from '@/api/dataOps';
 
 const groupLabel: Record<string, string> = {
@@ -28,6 +30,10 @@ function statusColor(status?: string) {
 
 function rowTime(row: DataOpsMetricRow) {
   return row.recognizedAt ? new Date(row.recognizedAt).getTime() : 0;
+}
+
+function metricRowKey(row: DataOpsMetricRow) {
+  return String(row.id || `${row.metricGroup}-${row.metricKey}-${row.assetId || 'no-asset'}`);
 }
 
 function isBetterMetricRow(next: DataOpsMetricRow, current?: DataOpsMetricRow) {
@@ -117,8 +123,47 @@ export function AccountVideoMetricTable({
   contentType?: DataOpsContentType;
   contentTitle?: string;
 }) {
+  const [selectedKey, setSelectedKey] = useState<string>();
+  const [editingKey, setEditingKey] = useState<string>();
+  const [editingValue, setEditingValue] = useState<Record<string, string>>({});
+  const [savingKey, setSavingKey] = useState<string>();
+  const [manualValues, setManualValues] = useState<Record<string, string | null>>({});
+
   const accounts = buildGroups(rows || [], contentType, contentTitle);
   if (!loading && !accounts.length) return <Empty description="当前主题还没有识别出账号/内容数据，上传数据页1后会自动生成数据表" />;
+
+  const currentMetricValue = (row: DataOpsMetricRow) => {
+    const key = metricRowKey(row);
+    return Object.prototype.hasOwnProperty.call(manualValues, key) ? manualValues[key] : row.metricValue ?? null;
+  };
+
+  const startEdit = (row: DataOpsMetricRow) => {
+    const key = metricRowKey(row);
+    const value = currentMetricValue(row);
+    setSelectedKey(key);
+    setEditingKey(key);
+    setEditingValue(values => ({ ...values, [key]: value == null ? '' : String(value) }));
+  };
+
+  const cancelEdit = () => {
+    setEditingKey(undefined);
+  };
+
+  const saveEdit = async (row: DataOpsMetricRow) => {
+    const key = metricRowKey(row);
+    const nextValue = editingValue[key] ?? '';
+    setSavingKey(key);
+    try {
+      await client.patch(`/data-ops/platform-topics/metrics/${row.id}`, { metricValue: nextValue });
+      const normalized = nextValue.trim();
+      setManualValues(values => ({ ...values, [key]: normalized ? normalized : null }));
+      setEditingKey(undefined);
+      message.success('识别值已人工修改');
+    } finally {
+      setSavingKey(undefined);
+    }
+  };
+
   return <Space direction="vertical" size={16} style={{ width: '100%' }}>
     {accounts.map(account => <Card key={account.key} type="inner" title={<Space><span>账号：{account.accountName}</span><Tag>账号ID：{account.platformUserId}</Tag></Space>}>
       {account.contents.map((content: any) => <Card key={content.key} size="small" style={{ marginBottom: 12 }} title={<Space><span>{contentTypeLabel[content.contentType] || content.contentType || '内容'}：{content.title}</span><Tag color="blue">#{content.contentId || '当前作品'}</Tag></Space>}>
@@ -127,15 +172,63 @@ export function AccountVideoMetricTable({
             <Table<DataOpsMetricRow>
               loading={loading}
               size="small"
-              rowKey={row => `${row.metricGroup}-${row.metricKey}-${row.assetId || row.id}`}
+              rowKey={metricRowKey}
               pagination={false}
               dataSource={page.rows}
+              onRow={row => ({
+                onClick: () => setSelectedKey(metricRowKey(row)),
+                style: {
+                  cursor: 'pointer',
+                  background: selectedKey === metricRowKey(row) ? '#f0f7ff' : undefined
+                }
+              })}
               columns={[
                 { title: '数据标签', dataIndex: 'metricLabel', width: 180 },
-                { title: '识别值', width: 160, render: (_, row) => row.metricValue ?? 'null' },
+                {
+                  title: '识别值',
+                  width: 200,
+                  render: (_, row) => {
+                    const key = metricRowKey(row);
+                    if (editingKey === key) {
+                      return <Input
+                        size="small"
+                        autoFocus
+                        value={editingValue[key] ?? ''}
+                        placeholder="输入新值；留空表示 null"
+                        onClick={event => event.stopPropagation()}
+                        onChange={event => setEditingValue(values => ({ ...values, [key]: event.target.value }))}
+                        onPressEnter={() => saveEdit(row)}
+                      />;
+                    }
+                    return currentMetricValue(row) ?? 'null';
+                  }
+                },
                 { title: '单位', width: 80, render: (_, row) => row.metricUnit || '-' },
-                { title: '状态', width: 100, render: (_, row) => <Tag color={statusColor(row.recognitionStatus)}>{row.recognitionStatus || 'PENDING'}</Tag> },
-                { title: '识别时间', width: 190, render: (_, row) => row.recognizedAt || '-' }
+                {
+                  title: '状态',
+                  width: 100,
+                  render: (_, row) => {
+                    const key = metricRowKey(row);
+                    const isManual = Object.prototype.hasOwnProperty.call(manualValues, key);
+                    const status = isManual ? (manualValues[key] == null ? 'PENDING' : 'SUCCESS') : row.recognitionStatus;
+                    return <Tag color={isManual ? 'blue' : statusColor(status)}>{isManual ? 'MANUAL' : status || 'PENDING'}</Tag>;
+                  }
+                },
+                { title: '识别时间', width: 190, render: (_, row) => row.recognizedAt || '-' },
+                {
+                  title: '操作',
+                  width: 130,
+                  render: (_, row) => {
+                    const key = metricRowKey(row);
+                    if (editingKey === key) {
+                      return <Space onClick={event => event.stopPropagation()}>
+                        <Button type="link" size="small" loading={savingKey === key} onClick={() => saveEdit(row)}>确认</Button>
+                        <Button type="link" size="small" onClick={cancelEdit}>取消</Button>
+                      </Space>;
+                    }
+                    return selectedKey === key ? <Button type="link" size="small" onClick={event => { event.stopPropagation(); startEdit(row); }}>编辑</Button> : null;
+                  }
+                }
               ]}
             />
           </Card>)}
